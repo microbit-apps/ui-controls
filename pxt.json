@@ -1,0 +1,36 @@
+{
+    "name": "ui-controls",
+    "version": "0.0.1",
+    "files": [
+        "ns.ts",
+        "button.ts",
+        "label.ts",
+        "control.ts",
+        "row.ts",
+        "grid.ts",
+        "modal-style.ts",
+        "modal-grid.ts",
+        "numeric-entry.ts",
+        "text-entry.ts"
+    ],
+    "yotta": {
+        "config": {
+            "DEVICE_BLE": 0
+        }
+    },
+    "supportedTargets": [
+        "microbit"
+    ],
+    "testFiles": [
+        "test.ts",
+        "samples.ts"
+    ],
+    "dependencies": {
+        "core": "*",
+        "radio": "*",
+        "microphone": "*",
+        "display-shield": "github:microbit-apps/display-shield#v1.1.4",
+        "ui-core": "github:humanapp/ui-core#v0.0.2"
+    },
+    "testDependencies": {}
+}

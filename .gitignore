@@ -1,0 +1,8 @@
+.pxt
+pxt_modules
+built
+compile_commands.json
+generated-docs/*
+node_modules
+.DS_Store
+.vscode/settings.json
