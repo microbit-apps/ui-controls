@@ -43,6 +43,12 @@ namespace ui {
          * Bounds used to keep control focus labels visible.
          */
         labelBounds?: Rect
+
+        /**
+         * Whether left/right movement wraps from the last control to the first
+         * and back.
+         */
+        wrap?: boolean
     }
 
     /**
@@ -73,13 +79,14 @@ namespace ui {
         private controls_: UiRowControl<T>[]
         private defaultControlId_: string
         private scrollOwnerId_: UiFocusScrollOwnerId
-        private controlWidth_: number
-        private controlHeight_: number
+        private controlSizeWidth_: number
+        private controlSizeHeight_: number
         private gap_: number
         private controlRects_: Rect[]
         private controlView_: UiButtonView
         private controlStyle_: UiButtonStyle
         private labelBounds_: Rect
+        private wrap_: boolean
         private onActivate_: UiControlActivateHandler<T>
 
         constructor(options: UiRowOptions<T>) {
@@ -87,8 +94,12 @@ namespace ui {
             this.controls_ = options.controls
             this.defaultControlId_ = options.defaultControlId
             this.scrollOwnerId_ = options.scrollOwnerId
-            this.controlWidth_ = _uiControls.controlWidth(options.controlSize)
-            this.controlHeight_ = _uiControls.controlHeight(options.controlSize)
+            this.controlSizeWidth_ = options.controlSize
+                ? options.controlSize.width
+                : undefined
+            this.controlSizeHeight_ = options.controlSize
+                ? options.controlSize.height
+                : undefined
             this.gap_ = _uiControls.gap(options.gap)
             this.layoutSpec = _uiControls.defaultLayoutSpec()
             this.finalRect = new Rect()
@@ -96,6 +107,7 @@ namespace ui {
             this.controlRects_ = []
             this.controlStyle_ = options.controlStyle
             this.labelBounds_ = options.labelBounds
+            this.wrap_ = !!options.wrap
             this.controlView_ = new UiButtonView(options.controlStyle)
             this.onActivate_ = options.onActivate
         }
@@ -253,6 +265,7 @@ namespace ui {
             controller.setNavigation(this.scopeId_, {
                 kind: "row",
                 targets: this.navigationTargets(),
+                wrap: this.wrap_,
             })
         }
 
@@ -473,17 +486,29 @@ namespace ui {
         }
 
         private controlWidth(control: UiRowControl<T>): number {
-            return _uiControls.sizeWidth(
-                (<any>control).size,
-                this.controlWidth_,
-            )
+            const size = (<any>control).size
+            if (size && size.width !== undefined)
+                return _uiControls.sanitizeDimension(size.width, 0)
+            if (this.controlSizeWidth_ !== undefined)
+                return _uiControls.sanitizeDimension(this.controlSizeWidth_, 0)
+            return preferredControlWidth(control, this.measureStyle(control))
         }
 
         private controlHeight(control: UiRowControl<T>): number {
-            return _uiControls.sizeHeight(
-                (<any>control).size,
-                this.controlHeight_,
-            )
+            const size = (<any>control).size
+            if (size && size.height !== undefined)
+                return _uiControls.sanitizeDimension(size.height, 0)
+            if (this.controlSizeHeight_ !== undefined)
+                return _uiControls.sanitizeDimension(this.controlSizeHeight_, 0)
+            return preferredControlHeight(control, this.measureStyle(control))
+        }
+
+        /**
+         * Style used to measure a control's content when no explicit size is
+         * given. Matches the style used to render it.
+         */
+        private measureStyle(control: UiRowControl<T>): UiButtonStyle {
+            return control.style || this.controlStyle_ || UiButtonStyles.Default
         }
 
         private controlGapBefore(
