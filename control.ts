@@ -132,7 +132,8 @@ namespace ui {
         defaultControlId?: string
 
         /**
-         * Size assigned to each control.
+         * Size assigned to each control. A dimension that is omitted (or the
+         * whole option) falls back to the control's measured content size.
          */
         controlSize?: UiSizeOptions
 
@@ -329,13 +330,17 @@ namespace _uiControls {
     }
 
     const controlContentScratch: ui.UiControlContent = {}
-    const labelBoundsScratch = new ui.Rect()
+    // Lazily created so this never depends on cross-namespace initialization
+    // order at startup (a module-level `new ui.Rect()` can resolve to undefined
+    // depending on init sequencing).
+    let labelBoundsScratch: ui.Rect = undefined
 
     export function resolveLabelBounds(
         surface: ui.DrawSurface,
         explicitBounds: ui.Rect | undefined,
     ): ui.Rect | undefined {
         if (explicitBounds) return explicitBounds
+        if (!labelBoundsScratch) labelBoundsScratch = new ui.Rect()
         labelBoundsScratch.set(
             0,
             0,
