@@ -409,6 +409,7 @@ namespace ui {
                         this.style_ && this.style_.color !== undefined
                             ? this.style_.color
                             : 1,
+                    font: locFont(),
                 })
             this.renderControls(
                 surface,
@@ -502,7 +503,7 @@ namespace ui {
                 const text = controls[i].text || ""
                 textLength = Math.max(textLength, text.length)
             }
-            return Math.max(24, textLength * bitmaps.font8.charWidth + 16)
+            return Math.max(24, textLength * locFont().charWidth + 16)
         }
 
         private titleHeight(): number {
@@ -779,7 +780,7 @@ namespace ui {
                       ? this.title_
                       : this.title_.text
             let width = titleText
-                ? titleText.length * bitmaps.font8.charWidth
+                ? titleText.length * locFont().charWidth
                 : 0
             const bitmap =
                 this.title_ !== undefined && typeof this.title_ != "string"

@@ -4,7 +4,6 @@ namespace ui {
     const BUTTON_FOCUS_LABEL_OFFSET = 1
     const BUTTON_FOCUS_LABEL_PADDING = 1
     const BUTTON_CONTENT_GAP = 3
-    const BUTTON_DEFAULT_FONT = bitmaps.font8
     const BUTTON_CONTROL_HORIZONTAL_PADDING = 16
     const BUTTON_CONTROL_VERTICAL_PADDING = 8
     const BUTTON_CONTROL_MIN_WIDTH = 24
@@ -132,7 +131,7 @@ namespace ui {
         content: UiControlContent,
         style?: UiButtonStyle,
     ): number {
-        const font = (style && style.font) || BUTTON_DEFAULT_FONT
+        const font = (style && style.font) || locFont()
         const text = content.text || ""
         const textWidth = text.length ? font.charWidth * text.length : 0
         const bitmapWidth = content.bitmap ? content.bitmap.width : 0
@@ -151,7 +150,7 @@ namespace ui {
         content: UiControlContent,
         style?: UiButtonStyle,
     ): number {
-        const font = (style && style.font) || BUTTON_DEFAULT_FONT
+        const font = (style && style.font) || locFont()
         const text = content.text || ""
         const textHeight = text.length ? font.charHeight : 0
         const bitmapHeight = content.bitmap ? content.bitmap.height : 0
@@ -263,7 +262,7 @@ namespace ui {
             this.contentRect(rect, content, style, contentRect)
             const bitmap = content.bitmap
             const text = this.contentText(content, style)
-            const font = style.font || BUTTON_DEFAULT_FONT
+            const font = style.font || locFont()
             const color = style.color !== undefined ? style.color : 15
             const graphicWidth = bitmap ? bitmap.width : 0
 
@@ -365,7 +364,7 @@ namespace ui {
             }
             const text = this.focusLabelText(content, style, focusLabelText)
             if (text.length == 0) return
-            const font = style.font || BUTTON_DEFAULT_FONT
+            const font = style.font || locFont()
             const textWidth = font.charWidth * text.length
             const textHeight = font.charHeight
             const padding = BUTTON_FOCUS_LABEL_PADDING
@@ -410,7 +409,7 @@ namespace ui {
             style: UiButtonStyle,
             output: Rect,
         ): void {
-            const font = style.font || BUTTON_DEFAULT_FONT
+            const font = style.font || locFont()
             const text = this.contentText(content, style)
             const textWidth = text.length > 0 ? font.charWidth * text.length : 0
             const textHeight = text.length > 0 ? font.charHeight : 0

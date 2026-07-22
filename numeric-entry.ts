@@ -1,5 +1,4 @@
 namespace ui {
-    const NUMERIC_ENTRY_FONT = bitmaps.font8
     const UI_NUMERIC_ENTRY_FLAG_DELETE_ENABLED = 1
     const UI_NUMERIC_ENTRY_FLAG_CANCEL_ENABLED = 2
 
@@ -190,7 +189,7 @@ namespace ui {
                 surface,
                 rect,
                 this.text_,
-                NUMERIC_ENTRY_FONT,
+                locFont(),
             )
         }
 
@@ -967,10 +966,10 @@ namespace ui {
         private keyTextForKey(key: UiNumericEntryModalKeyValue): string {
             if (key >= 0 && key <= 9) return "" + key
             if (key == UI_NUMERIC_ENTRY_KEY_DECIMAL_POINT) return "."
-            if (key == UI_NUMERIC_ENTRY_KEY_TOGGLE_SIGN) return "+/-"
+            if (key == UI_NUMERIC_ENTRY_KEY_TOGGLE_SIGN) return loc("+/-")
             if (key == UI_NUMERIC_ENTRY_KEY_BACKSPACE) return "<-"
-            if (key == UI_NUMERIC_ENTRY_KEY_DELETE) return "DEL"
-            return "OK"
+            if (key == UI_NUMERIC_ENTRY_KEY_DELETE) return loc("DEL")
+            return loc("OK")
         }
     }
 }

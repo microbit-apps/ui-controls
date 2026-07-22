@@ -1,5 +1,4 @@
 namespace ui {
-    const TEXT_ENTRY_FONT = bitmaps.font8
     const TEXT_ENTRY_LOWERCASE = "abcdefghijklmnopqrstuvwxyz"
     const TEXT_ENTRY_UPPERCASE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     const TEXT_ENTRY_SYMBOLS = "-_.,!?@#"
@@ -32,18 +31,20 @@ namespace ui {
     const UI_TEXT_ENTRY_PAGE_LETTERS = 0
     const UI_TEXT_ENTRY_PAGE_DIGITS = 1
     const UI_TEXT_ENTRY_PAGE_SYMBOLS = 2
+    // These key styles intentionally omit `font`: the render path resolves the
+    // default font at use time via `ui.locFont()`. Setting it here would capture
+    // `bitmaps.font8` at module-init time, before the app assigns a per-language
+    // font, and would never pick up a localized default.
     const UI_TEXT_ENTRY_MODAL_ENTER_STYLE: UiButtonStyle = {
         backgroundColor: 1,
         borderColor: 7,
         frame: "roundedRect",
-        font: bitmaps.font8,
         textPlacement: "content",
     }
     const UI_TEXT_ENTRY_MODAL_CUSTOM_STYLE: UiButtonStyle = {
         backgroundColor: 1,
         borderColor: 10,
         frame: "roundedRect",
-        font: bitmaps.font8,
         textPlacement: "content",
     }
 
@@ -292,7 +293,7 @@ namespace ui {
                 surface,
                 rect,
                 this.text_,
-                TEXT_ENTRY_FONT,
+                locFont(),
             )
         }
 
@@ -434,13 +435,11 @@ namespace ui {
             this.keyStyle_ =
                 options.keyStyle ||
                 buttonStyle(UiButtonStyles.LightShadowedWhite, {
-                    font: bitmaps.font8,
                     textPlacement: "content",
                 })
             if (this.title_ !== undefined)
                 this.titleStyle_ = {
                     color: options.color === undefined ? 1 : options.color,
-                    font: bitmaps.font8,
                     textPlacement: "content",
                 }
             this.keyView_ = new UiButtonView(this.keyStyle_)
@@ -874,14 +873,14 @@ namespace ui {
         private keyTextForKey(key: string): string {
             if (key == UI_TEXT_ENTRY_KEY_SHIFT)
                 return this.flags_ & UI_TEXT_ENTRY_FLAG_UPPERCASE
-                    ? "abc"
-                    : "ABC"
+                    ? loc("abc")
+                    : loc("ABC")
             if (key == UI_TEXT_ENTRY_KEY_BACKSPACE) return "<-"
-            if (key == UI_TEXT_ENTRY_KEY_ENTER) return "OK"
-            if (key == UI_TEXT_ENTRY_KEY_PAGE_LETTERS) return "ABC"
-            if (key == UI_TEXT_ENTRY_KEY_PAGE_DIGITS) return "123"
-            if (key == UI_TEXT_ENTRY_KEY_PAGE_SYMBOLS) return "#+="
-            if (key == UI_TEXT_ENTRY_KEY_SPACE) return "space"
+            if (key == UI_TEXT_ENTRY_KEY_ENTER) return loc("OK")
+            if (key == UI_TEXT_ENTRY_KEY_PAGE_LETTERS) return loc("ABC")
+            if (key == UI_TEXT_ENTRY_KEY_PAGE_DIGITS) return loc("123")
+            if (key == UI_TEXT_ENTRY_KEY_PAGE_SYMBOLS) return loc("#+=")
+            if (key == UI_TEXT_ENTRY_KEY_SPACE) return loc("space")
             if (
                 this.flags_ &
                 (UI_TEXT_ENTRY_FLAG_UPPERCASE |
