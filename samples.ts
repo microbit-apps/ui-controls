@@ -72,7 +72,7 @@ namespace ui.controls.samples {
             this.openModal(
                 new ui.UiTextEntryModal({
                     modalScopeId: "name-editor",
-                    title: "Enter your name:",
+                    title: loc("Enter your name:"),
                     initialText: this.name,
                     allowWhitespace: true,
                     allowSymbols: true,
@@ -169,6 +169,24 @@ namespace ui.controls.samples {
         }
     }
 
+    // Selects a locale by assigning the localization seams directly. A
+    // consuming app normally assigns these from its generated per-language
+    // file; any code that runs before the UI is constructed can do the same,
+    // which is how a sample or test drives a locale.
+    function applySpanishLocale(): void {
+        _loc.table = {
+            "space": "espacio",
+            "DEL": "SUP",
+            "Enter your name:": "Escribe tu nombre:",
+        }
+        _loc.alphabetLower = "abcdefghijklmnñopqrstuvwxyz"
+        _loc.alphabetUpper = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ"
+        _loc.accentsLower = "áéíóúü"
+        _loc.accentsUpper = "ÁÉÍÓÚÜ"
+        _loc.symbols = "-_.,!?@#¡¿"
+    }
+
+    applySpanishLocale()
     const runtime = new ui.UiRuntime(new ui.DisplayShieldFrameAdapter())
     //runtime.push(new SettingsScreen(runtime))
     runtime.push(new NameEntryScreen(runtime))

@@ -1,3 +1,37 @@
+/**
+ * These members extend the `_loc` namespace declared in ui-core and are
+ * assigned by the consuming app's generated localization file, the same way
+ * `_loc.table` and `_loc.defaultFont` are. They describe the on-screen keyboard,
+ * a ui-controls concept, so they are declared here rather than in ui-core.
+ */
+namespace _loc {
+    /**
+     * On-screen keyboard letter set and its case-parallel. String order defines
+     * the keyboard key order. `alphabetLower` and `alphabetUpper` must have
+     * equal length, with the character at each index the lower and upper form of
+     * the same letter; a caseless script assigns them identically (or leaves
+     * `alphabetUpper` empty). `undefined` means the module default alphabet.
+     */
+    export let alphabetLower: string = undefined
+    export let alphabetUpper: string = undefined
+
+    /**
+     * Additional accented letter pairs accepted as text-entry input. Same
+     * pairing contract as `alphabet*`: equal length, positionally paired
+     * lower/upper forms. Accepted by the input filter and mapped by case
+     * normalization. `undefined` means no accented input beyond the base
+     * alphabet.
+     */
+    export let accentsLower: string = undefined
+    export let accentsUpper: string = undefined
+
+    /**
+     * On-screen keyboard symbol-page characters. String order defines the symbol
+     * key order. `undefined` means the module default symbols.
+     */
+    export let symbols: string = undefined
+}
+
 namespace ui {
     const TEXT_ENTRY_LOWERCASE = "abcdefghijklmnopqrstuvwxyz"
     const TEXT_ENTRY_UPPERCASE = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -20,7 +54,24 @@ namespace ui {
     const UI_TEXT_ENTRY_KEY_SPACE = "\u0007"
     const UI_TEXT_ENTRY_KEY_CUSTOM = "\u0008"
     const UI_TEXT_ENTRY_KEY_SPACER = "\u0009"
+    // Vertical tab, chosen to stay clear of any newline handling.
+    const UI_TEXT_ENTRY_KEY_PAGE_ACCENTS = "\u000B"
     const UI_TEXT_ENTRY_DIGIT_KEYS = "1234567890"
+    // Keyboard grid geometry limits. A row shows at most 13 keys and the letter
+    // pages use at most 3 letter rows plus one action row. Alphabet characters
+    // beyond `UI_TEXT_ENTRY_MAX_LETTER_ROWS * UI_TEXT_ENTRY_MAX_ROW_KEYS` are
+    // still accepted by the input filter but are not rendered as keys.
+    const UI_TEXT_ENTRY_MAX_ROW_KEYS = 13
+    const UI_TEXT_ENTRY_MAX_LETTER_ROWS = 3
+    // Slots reserved in the trailing action row: shift/page-left, page-toggle,
+    // space, custom, backspace, enter.
+    const UI_TEXT_ENTRY_ACTION_ROW_SLOTS = 6
+    const UI_TEXT_ENTRY_ACTION_SHIFT = 0
+    const UI_TEXT_ENTRY_ACTION_PAGE = 1
+    const UI_TEXT_ENTRY_ACTION_SPACE = 2
+    const UI_TEXT_ENTRY_ACTION_CUSTOM = 3
+    const UI_TEXT_ENTRY_ACTION_BACKSPACE = 4
+    const UI_TEXT_ENTRY_ACTION_ENTER = 5
     const UI_TEXT_ENTRY_FLAG_ALLOW_EMPTY = 1
     const UI_TEXT_ENTRY_FLAG_ALLOW_WHITESPACE = 2
     const UI_TEXT_ENTRY_FLAG_ALLOW_DIGITS = 4
@@ -31,6 +82,7 @@ namespace ui {
     const UI_TEXT_ENTRY_PAGE_LETTERS = 0
     const UI_TEXT_ENTRY_PAGE_DIGITS = 1
     const UI_TEXT_ENTRY_PAGE_SYMBOLS = 2
+    const UI_TEXT_ENTRY_PAGE_ACCENTS = 3
     // These key styles intentionally omit `font`: the render path resolves the
     // default font at use time via `ui.locFont()`. Setting it here would capture
     // `bitmaps.font8` at module-init time, before the app assigns a per-language
@@ -46,6 +98,120 @@ namespace ui {
         borderColor: 10,
         frame: "roundedRect",
         textPlacement: "content",
+    }
+
+    /**
+     * Per-field keyboard character-set override for text entry. Each present
+     * field replaces the corresponding `_loc` charset field (or the module
+     * default) for this entry only. `lower`/`upper` and
+     * `accentsLower`/`accentsUpper` are case-parallel: equal length, with the
+     * character at each index the lower and upper form of the same letter. The
+     * string order defines keyboard key order. An empty or absent `upper` marks
+     * a caseless keyboard.
+     */
+    export interface UiTextEntryCharset {
+        lower?: string
+        upper?: string
+        accentsLower?: string
+        accentsUpper?: string
+        symbols?: string
+    }
+
+    /**
+     * Resolved keyboard character set. Every field is a concrete string. An
+     * empty `upper` (or `upper` equal to `lower`) marks a caseless keyboard;
+     * empty `accents*` or `symbols` mark none.
+     */
+    class ResolvedTextEntryCharset {
+        public lower: string
+        public upper: string
+        public accentsLower: string
+        public accentsUpper: string
+        public symbols: string
+    }
+
+    function pickCharsetField(
+        override: string,
+        locValue: string,
+        fallback: string,
+    ): string {
+        if (override !== undefined) return override
+        if (locValue !== undefined) return locValue
+        return fallback
+    }
+
+    /**
+     * Resolves the effective keyboard charset. Each field independently prefers
+     * the per-modal option override, then the matching `_loc` charset field,
+     * then the module ASCII default. `_loc` is read here at construction time,
+     * never at module init, so an app that assigns its generated charset before
+     * a keyboard is constructed is honored.
+     */
+    function resolveTextEntryCharset(
+        override: UiTextEntryCharset,
+    ): ResolvedTextEntryCharset {
+        const result = new ResolvedTextEntryCharset()
+        const o = override || {}
+        result.lower = pickCharsetField(
+            o.lower,
+            _loc.alphabetLower,
+            TEXT_ENTRY_LOWERCASE,
+        )
+        result.upper = pickCharsetField(
+            o.upper,
+            _loc.alphabetUpper,
+            TEXT_ENTRY_UPPERCASE,
+        )
+        result.accentsLower = pickCharsetField(
+            o.accentsLower,
+            _loc.accentsLower,
+            "",
+        )
+        result.accentsUpper = pickCharsetField(
+            o.accentsUpper,
+            _loc.accentsUpper,
+            "",
+        )
+        result.symbols = pickCharsetField(o.symbols, _loc.symbols, TEXT_ENTRY_SYMBOLS)
+        return result
+    }
+
+    /**
+     * Distributes `count` items across exactly `rows` rows as evenly as
+     * possible. When the count does not divide evenly, the longer rows are the
+     * last ones (10 across 3 rows is 3, 3, 4), which reads better than a heavy
+     * top row. distributeEvenly(26, 2) yields the two full rows of 13 used by
+     * the ASCII default.
+     */
+    function distributeEvenly(count: number, rows: number): number[] {
+        const base = Math.idiv(count, rows)
+        const remainder = count - base * rows
+        const lengths: number[] = []
+        for (let i = 0; i < rows; i++)
+            lengths.push(base + (i >= rows - remainder ? 1 : 0))
+        return lengths
+    }
+
+    /**
+     * Splits `count` letters across keyboard rows. Rows hold at most
+     * `UI_TEXT_ENTRY_MAX_ROW_KEYS` keys and there are at most
+     * `UI_TEXT_ENTRY_MAX_LETTER_ROWS` letter rows, so at most 39 letters render;
+     * any beyond that are filter-accepted but not shown. Letters fill in string
+     * order and are distributed as evenly as possible, the last rows taking any
+     * remainder. A 26-letter alphabet yields the two full rows of 13 used by the
+     * ASCII default.
+     */
+    function splitLetterRows(count: number): number[] {
+        const maxShown = UI_TEXT_ENTRY_MAX_LETTER_ROWS * UI_TEXT_ENTRY_MAX_ROW_KEYS
+        let shown = count
+        if (shown > maxShown) shown = maxShown
+        if (shown < 1) shown = 1
+        let rows = Math.idiv(
+            shown + UI_TEXT_ENTRY_MAX_ROW_KEYS - 1,
+            UI_TEXT_ENTRY_MAX_ROW_KEYS,
+        )
+        if (rows < 1) rows = 1
+        return distributeEvenly(shown, rows)
     }
 
     /**
@@ -139,6 +305,12 @@ namespace ui {
         validate?: UiTextEntryValidator
 
         /**
+         * Optional per-field keyboard charset override. Unset fields fall back
+         * to the matching `_loc` charset field, then the module default.
+         */
+        charset?: UiTextEntryCharset
+
+        /**
          * Optional title content.
          */
         title?: UiControlContentOptions | string
@@ -173,6 +345,7 @@ namespace ui {
         private minLength_: number
         private flags_: number
         private validate_: UiTextEntryValidator
+        private charset_: ResolvedTextEntryCharset
 
         constructor(
             initialText?: string,
@@ -185,7 +358,9 @@ namespace ui {
             uppercaseOnly?: boolean,
             cancelEnabled?: boolean,
             validate?: UiTextEntryValidator,
+            charset?: UiTextEntryCharset,
         ) {
+            this.charset_ = resolveTextEntryCharset(charset)
             this.flags_ = 0
             if (allowEmpty) this.flags_ |= UI_TEXT_ENTRY_FLAG_ALLOW_EMPTY
             if (allowWhitespace)
@@ -334,14 +509,27 @@ namespace ui {
         }
 
         private normalizedCharacter(ch: string): string {
-            if (ch >= "a" && ch <= "z") {
-                if (this.flags_ & UI_TEXT_ENTRY_FLAG_UPPERCASE_ONLY)
-                    return TEXT_ENTRY_UPPERCASE.charAt(
-                        TEXT_ENTRY_LOWERCASE.indexOf(ch),
-                    )
+            const cs = this.charset_
+            const lowerIndex = cs.lower.indexOf(ch)
+            if (lowerIndex >= 0) {
+                if (
+                    this.flags_ & UI_TEXT_ENTRY_FLAG_UPPERCASE_ONLY &&
+                    cs.upper.length > lowerIndex
+                )
+                    return cs.upper.charAt(lowerIndex)
                 return ch
             }
-            if (ch >= "A" && ch <= "Z") return ch
+            if (cs.upper.indexOf(ch) >= 0) return ch
+            const accentIndex = cs.accentsLower.indexOf(ch)
+            if (accentIndex >= 0) {
+                if (
+                    this.flags_ & UI_TEXT_ENTRY_FLAG_UPPERCASE_ONLY &&
+                    cs.accentsUpper.length > accentIndex
+                )
+                    return cs.accentsUpper.charAt(accentIndex)
+                return ch
+            }
+            if (cs.accentsUpper.indexOf(ch) >= 0) return ch
             if (ch >= "0" && ch <= "9")
                 return this.flags_ & UI_TEXT_ENTRY_FLAG_ALLOW_DIGITS ? ch : ""
             if (ch == " ")
@@ -357,7 +545,7 @@ namespace ui {
         }
 
         private isSymbol(ch: string): boolean {
-            return TEXT_ENTRY_SYMBOLS.indexOf(ch) >= 0
+            return this.charset_.symbols.indexOf(ch) >= 0
         }
 
         private canComplete(text: string): boolean {
@@ -407,10 +595,22 @@ namespace ui {
         private titleGap_: number
         private page_: number
         private flags_: number
+        private charset_: ResolvedTextEntryCharset
+        private hasCase_: boolean
+        private rowLengths_: number[]
+        private rowStarts_: number[]
+        private numRows_: number
+        private slotCount_: number
+        private shownLetters_: number
         private onResult_: (result: UiTextEntryResult) => void
 
         constructor(options: UiTextEntryModalOptions) {
             this.modalScopeId_ = options.modalScopeId
+            this.charset_ = resolveTextEntryCharset(options.charset)
+            this.hasCase_ =
+                this.charset_.upper.length > 0 &&
+                this.charset_.upper != this.charset_.lower
+            this.buildRowStructure()
             this.entry_ = this.createEntry(options)
             this.title_ = options.title
             this.customAction_ = options.customAction
@@ -446,7 +646,7 @@ namespace ui {
             this.keyContent_ = {}
             this.keyValues_ = []
             this.keyXs_ = []
-            for (let i = 0; i < 32; i++) {
+            for (let i = 0; i < this.slotCount_; i++) {
                 this.keyValues_.push(UI_TEXT_ENTRY_KEY_SPACER)
                 this.keyXs_.push(0)
             }
@@ -676,63 +876,159 @@ namespace ui {
                 options.uppercaseOnly,
                 true,
                 options.validate,
+                this.charset_,
             )
+        }
+
+        private buildRowStructure(): void {
+            const letterRows = splitLetterRows(this.charset_.lower.length)
+            this.rowLengths_ = []
+            this.shownLetters_ = 0
+            for (let i = 0; i < letterRows.length; i++) {
+                this.rowLengths_.push(letterRows[i])
+                this.shownLetters_ += letterRows[i]
+            }
+            this.rowLengths_.push(UI_TEXT_ENTRY_ACTION_ROW_SLOTS)
+            this.numRows_ = this.rowLengths_.length
+            this.rowStarts_ = []
+            let start = 0
+            for (let i = 0; i < this.numRows_; i++) {
+                this.rowStarts_.push(start)
+                start += this.rowLengths_[i]
+            }
+            this.slotCount_ = start
+        }
+
+        private actionBase(): number {
+            return this.rowStarts_[this.numRows_ - 1]
         }
 
         private rebuildKeys(): void {
             for (let i = 0; i < this.keyValues_.length; i++)
                 this.keyValues_[i] = UI_TEXT_ENTRY_KEY_SPACER
             if (this.page_ == UI_TEXT_ENTRY_PAGE_LETTERS) this.addLetterKeys()
+            else if (this.page_ == UI_TEXT_ENTRY_PAGE_ACCENTS)
+                this.addAccentKeys()
             else if (this.page_ == UI_TEXT_ENTRY_PAGE_DIGITS)
                 this.addDigitKeys()
             else this.addSymbolKeys()
         }
 
+        // Ordered list of non-letter pages available for the current flags and
+        // charset: accents (only when the resolved charset carries an accent
+        // set), then digits, then symbols. Drives both the letters-page page key
+        // and the cycle between extra pages.
+        private extraPages(): number[] {
+            const pages: number[] = []
+            if (this.charset_.accentsLower.length > 0)
+                pages.push(UI_TEXT_ENTRY_PAGE_ACCENTS)
+            if (this.flags_ & UI_TEXT_ENTRY_FLAG_ALLOW_DIGITS)
+                pages.push(UI_TEXT_ENTRY_PAGE_DIGITS)
+            if (this.flags_ & UI_TEXT_ENTRY_FLAG_ALLOW_SYMBOLS)
+                pages.push(UI_TEXT_ENTRY_PAGE_SYMBOLS)
+            return pages
+        }
+
+        private pageKeyFor(page: number): string {
+            if (page == UI_TEXT_ENTRY_PAGE_ACCENTS)
+                return UI_TEXT_ENTRY_KEY_PAGE_ACCENTS
+            if (page == UI_TEXT_ENTRY_PAGE_DIGITS)
+                return UI_TEXT_ENTRY_KEY_PAGE_DIGITS
+            if (page == UI_TEXT_ENTRY_PAGE_SYMBOLS)
+                return UI_TEXT_ENTRY_KEY_PAGE_SYMBOLS
+            return UI_TEXT_ENTRY_KEY_PAGE_LETTERS
+        }
+
         private addLetterKeys(): void {
-            for (let i = 0; i < TEXT_ENTRY_LOWERCASE.length; i++)
-                this.keyValues_[i] = TEXT_ENTRY_LOWERCASE.charAt(i)
-            if (!(this.flags_ & UI_TEXT_ENTRY_FLAG_UPPERCASE_ONLY))
-                this.keyValues_[26] = UI_TEXT_ENTRY_KEY_SHIFT
+            for (let i = 0; i < this.shownLetters_; i++)
+                this.keyValues_[i] = this.charset_.lower.charAt(i)
+            const base = this.actionBase()
             if (
-                this.flags_ &
-                (UI_TEXT_ENTRY_FLAG_ALLOW_DIGITS |
-                    UI_TEXT_ENTRY_FLAG_ALLOW_SYMBOLS)
+                !(this.flags_ & UI_TEXT_ENTRY_FLAG_UPPERCASE_ONLY) &&
+                this.hasCase_
             )
-                this.keyValues_[27] = UI_TEXT_ENTRY_KEY_PAGE_DIGITS
+                this.keyValues_[base + UI_TEXT_ENTRY_ACTION_SHIFT] =
+                    UI_TEXT_ENTRY_KEY_SHIFT
+            const extras = this.extraPages()
+            if (extras.length > 0)
+                this.keyValues_[base + UI_TEXT_ENTRY_ACTION_PAGE] =
+                    this.pageKeyFor(extras[0])
             this.addActionKeys()
+        }
+
+        // Places a page's characters across the content rows (every row but the
+        // trailing action row), distributed as evenly as possible and left in
+        // string order. Unlike the letter pages, digit and symbol pages hold
+        // fewer keys than the grid has content slots, so spreading them keeps
+        // each row balanced rather than packing the first rows full. Remaining
+        // slots stay spacers, which the row layout centers around.
+        private placeContentKeys(source: string): void {
+            const contentRows = this.numRows_ - 1
+            let shown = source.length
+            if (shown > this.actionBase()) shown = this.actionBase()
+            const shares = distributeEvenly(shown, contentRows)
+            let srcIndex = 0
+            for (let row = 0; row < contentRows; row++) {
+                let share = shares[row]
+                if (share > this.rowLengths_[row]) share = this.rowLengths_[row]
+                const start = this.rowStarts_[row]
+                for (let i = 0; i < share; i++) {
+                    this.keyValues_[start + i] = source.charAt(srcIndex)
+                    srcIndex++
+                }
+            }
+        }
+
+        private addAccentKeys(): void {
+            this.placeContentKeys(this.charset_.accentsLower)
+            this.setupExtraPageActionRow(UI_TEXT_ENTRY_PAGE_ACCENTS)
         }
 
         private addDigitKeys(): void {
-            for (let i = 0; i < UI_TEXT_ENTRY_DIGIT_KEYS.length; i++)
-                this.keyValues_[i] = UI_TEXT_ENTRY_DIGIT_KEYS.charAt(i)
-            this.keyValues_[26] = UI_TEXT_ENTRY_KEY_PAGE_LETTERS
-            this.keyValues_[27] =
-                this.flags_ & UI_TEXT_ENTRY_FLAG_ALLOW_SYMBOLS
-                    ? UI_TEXT_ENTRY_KEY_PAGE_SYMBOLS
-                    : UI_TEXT_ENTRY_KEY_PAGE_LETTERS
-            this.addActionKeys()
+            this.placeContentKeys(UI_TEXT_ENTRY_DIGIT_KEYS)
+            this.setupExtraPageActionRow(UI_TEXT_ENTRY_PAGE_DIGITS)
         }
 
         private addSymbolKeys(): void {
-            for (let i = 0; i < TEXT_ENTRY_SYMBOLS.length; i++)
-                this.keyValues_[i] = TEXT_ENTRY_SYMBOLS.charAt(i)
-            this.keyValues_[26] = UI_TEXT_ENTRY_KEY_PAGE_LETTERS
-            if (this.flags_ & UI_TEXT_ENTRY_FLAG_ALLOW_DIGITS)
-                this.keyValues_[27] = UI_TEXT_ENTRY_KEY_PAGE_DIGITS
+            this.placeContentKeys(this.charset_.symbols)
+            this.setupExtraPageActionRow(UI_TEXT_ENTRY_PAGE_SYMBOLS)
+        }
+
+        // Action row shared by every non-letter page. The shift slot always
+        // returns to the letter page; the page slot advances to the next extra
+        // page, cycling among the present extras and collapsing to the letter
+        // page when only one extra exists.
+        private setupExtraPageActionRow(page: number): void {
+            const base = this.actionBase()
+            this.keyValues_[base + UI_TEXT_ENTRY_ACTION_SHIFT] =
+                UI_TEXT_ENTRY_KEY_PAGE_LETTERS
+            const extras = this.extraPages()
+            let target = UI_TEXT_ENTRY_PAGE_LETTERS
+            if (extras.length > 1) {
+                const i = extras.indexOf(page)
+                target = extras[(i + 1) % extras.length]
+            }
+            this.keyValues_[base + UI_TEXT_ENTRY_ACTION_PAGE] =
+                this.pageKeyFor(target)
             this.addActionKeys()
         }
 
         private addActionKeys(): void {
+            const base = this.actionBase()
             if (this.flags_ & UI_TEXT_ENTRY_FLAG_ALLOW_WHITESPACE)
-                this.keyValues_[28] = UI_TEXT_ENTRY_KEY_SPACE
+                this.keyValues_[base + UI_TEXT_ENTRY_ACTION_SPACE] =
+                    UI_TEXT_ENTRY_KEY_SPACE
             if (this.customAction_)
-                this.keyValues_[29] = UI_TEXT_ENTRY_KEY_CUSTOM
-            this.keyValues_[30] = UI_TEXT_ENTRY_KEY_BACKSPACE
-            this.keyValues_[31] = UI_TEXT_ENTRY_KEY_ENTER
+                this.keyValues_[base + UI_TEXT_ENTRY_ACTION_CUSTOM] =
+                    UI_TEXT_ENTRY_KEY_CUSTOM
+            this.keyValues_[base + UI_TEXT_ENTRY_ACTION_BACKSPACE] =
+                UI_TEXT_ENTRY_KEY_BACKSPACE
+            this.keyValues_[base + UI_TEXT_ENTRY_ACTION_ENTER] =
+                UI_TEXT_ENTRY_KEY_ENTER
         }
 
         private arrangeKeys(): void {
-            for (let row = 0; row < 3; row++) {
+            for (let row = 0; row < this.numRows_; row++) {
                 const start = this.rowStart(row)
                 const length = this.rowLength(row)
                 let x = this.rowX(row)
@@ -834,6 +1130,9 @@ namespace ui {
                 case UI_TEXT_ENTRY_KEY_PAGE_SYMBOLS:
                     this.setPage(UI_TEXT_ENTRY_PAGE_SYMBOLS)
                     return undefined
+                case UI_TEXT_ENTRY_KEY_PAGE_ACCENTS:
+                    this.setPage(UI_TEXT_ENTRY_PAGE_ACCENTS)
+                    return undefined
                 case UI_TEXT_ENTRY_KEY_SPACE:
                     return this.entry_.inputCharacter(" ")
                 case UI_TEXT_ENTRY_KEY_CUSTOM:
@@ -880,16 +1179,33 @@ namespace ui {
             if (key == UI_TEXT_ENTRY_KEY_PAGE_LETTERS) return loc("ABC")
             if (key == UI_TEXT_ENTRY_KEY_PAGE_DIGITS) return loc("123")
             if (key == UI_TEXT_ENTRY_KEY_PAGE_SYMBOLS) return loc("#+=")
+            if (key == UI_TEXT_ENTRY_KEY_PAGE_ACCENTS)
+                return this.accentsLabel()
             if (key == UI_TEXT_ENTRY_KEY_SPACE) return loc("space")
             if (
                 this.flags_ &
                 (UI_TEXT_ENTRY_FLAG_UPPERCASE |
                     UI_TEXT_ENTRY_FLAG_UPPERCASE_ONLY)
             ) {
-                const index = TEXT_ENTRY_LOWERCASE.indexOf(key)
-                if (index >= 0) return TEXT_ENTRY_UPPERCASE.charAt(index)
+                const index = this.charset_.lower.indexOf(key)
+                if (index >= 0 && this.charset_.upper.length > index)
+                    return this.charset_.upper.charAt(index)
+                const accentIndex = this.charset_.accentsLower.indexOf(key)
+                if (
+                    accentIndex >= 0 &&
+                    this.charset_.accentsUpper.length > accentIndex
+                )
+                    return this.charset_.accentsUpper.charAt(accentIndex)
             }
             return key
+        }
+
+        // Illustrative caption for the accents page key: the leading one or two
+        // accented letters of the resolved set. Not localized -- these are the
+        // charset's own glyphs, not a translatable word.
+        private accentsLabel(): string {
+            const accents = this.charset_.accentsLower
+            return accents.length > 2 ? accents.substr(0, 2) : accents
         }
 
         private keyStyleForKey(key: string): UiButtonStyle {
@@ -901,20 +1217,17 @@ namespace ui {
         }
 
         private rowForIndex(index: number): number {
-            if (index < 13) return 0
-            if (index < 26) return 1
-            return 2
+            for (let row = this.numRows_ - 1; row >= 0; row--)
+                if (index >= this.rowStarts_[row]) return row
+            return 0
         }
 
         private rowStart(row: number): number {
-            if (row == 0) return 0
-            if (row == 1) return 13
-            return 26
+            return this.rowStarts_[row]
         }
 
         private rowLength(row: number): number {
-            if (row == 2) return 6
-            return 13
+            return this.rowLengths_[row]
         }
 
         private keyIndexForTargetId(targetId: UiFocusId): number {
@@ -982,7 +1295,7 @@ namespace ui {
                 Math.idiv(this.keyWidth(this.keyValues_[currentIndex]), 2)
             const step = direction == "up" ? -1 : 1
             let row = currentRow + step
-            while (row >= 0 && row < 3) {
+            while (row >= 0 && row < this.numRows_) {
                 const start = this.rowStart(row)
                 const length = this.rowLength(row)
                 let bestIndex = -1
@@ -1049,8 +1362,8 @@ namespace ui {
 
         private gridHeight(): number {
             return (
-                UI_TEXT_ENTRY_MODAL_KEY_HEIGHT * 3 +
-                UI_TEXT_ENTRY_MODAL_KEY_GAP * 2
+                UI_TEXT_ENTRY_MODAL_KEY_HEIGHT * this.numRows_ +
+                UI_TEXT_ENTRY_MODAL_KEY_GAP * (this.numRows_ - 1)
             )
         }
 
