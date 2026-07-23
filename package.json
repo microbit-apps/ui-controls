@@ -5,6 +5,6 @@
     },
     "devDependencies": {
         "prettier": "^3.8.3",
-        "@microbit-apps/ui-core": "github:microbit-apps/ui-core#v0.0.5"
+        "@microbit-apps/ui-core": "github:microbit-apps/ui-core#v0.0.6"
     }
 }
