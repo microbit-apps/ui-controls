@@ -43,9 +43,10 @@ Field contracts:
 - `alphabetLower` / `alphabetUpper` are the letter page. String order is key
   order. The two strings are case-parallel: equal code-point length, with the
   character at each index the lower and upper form of the same letter.
-- `accentsLower` / `accentsUpper` are additional accepted accented pairs, under
-  the same equal-length, positionally-paired contract. These are accepted by the
-  input filter (and case-normalized) but are not yet rendered as keys.
+- `accentsLower` / `accentsUpper` are additional accented pairs, under the same
+  equal-length, positionally-paired contract. When the field is non-empty they
+  render on a dedicated accents page reached from the keyboard's page key; they
+  are also accepted by the input filter and case-normalized.
 - `symbols` is the symbol page, in key order.
 
 The letter page shows at most 39 letters (3 rows of 13); letters beyond that are

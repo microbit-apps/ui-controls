@@ -173,6 +173,18 @@ namespace ui {
             "",
         )
         result.symbols = pickCharsetField(o.symbols, _loc.symbols, TEXT_ENTRY_SYMBOLS)
+        // Defensive normalization: per-modal overrides and `_loc` assignments
+        // are not build-validated, so guard the pairing contract here. An empty
+        // alphabet falls back to the default; a case pair whose halves differ in
+        // length is treated as caseless rather than casing only some letters.
+        if (result.lower.length == 0) {
+            result.lower = TEXT_ENTRY_LOWERCASE
+            result.upper = TEXT_ENTRY_UPPERCASE
+        }
+        if (result.upper.length != result.lower.length)
+            result.upper = result.lower
+        if (result.accentsUpper.length != result.accentsLower.length)
+            result.accentsUpper = result.accentsLower
         return result
     }
 
