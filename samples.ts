@@ -186,7 +186,20 @@ namespace ui.controls.samples {
         _loc.symbols = "-_.,!?@#¡¿"
     }
 
-    applySpanishLocale()
+    // French keeps the default alphabet and symbols and adds an accent set,
+    // so it exercises the accents keyboard page.
+    function applyFrenchLocale(): void {
+        _loc.table = {
+            "space": "espace",
+            "DEL": "SUP",
+            "Enter your name:": "Entre ton nom :",
+        }
+        _loc.accentsLower = "àâäçéèêëîïôöùûüÿœ"
+        _loc.accentsUpper = "ÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŸŒ"
+    }
+
+    //applySpanishLocale()
+    applyFrenchLocale()
     const runtime = new ui.UiRuntime(new ui.DisplayShieldFrameAdapter())
     //runtime.push(new SettingsScreen(runtime))
     runtime.push(new NameEntryScreen(runtime))
