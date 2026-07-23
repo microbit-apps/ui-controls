@@ -1787,6 +1787,548 @@ namespace ui.controls.test {
     }
 
     /**
+     * Smoke harness for keyboard charset injection. Verifies that the default
+     * charset is unchanged, that an injected `_loc` alphabet renders and accepts
+     * a non-ASCII letter with working case toggling, that a per-modal override
+     * beats `_loc`, that a caseless charset hides the shift key, and that a
+     * symbols override drives the symbol page.
+     */
+    export function runTextEntryCharsetSmokeTest(): void {
+        function resetLoc(): void {
+            _loc.table = undefined
+            _loc.alphabetLower = undefined
+            _loc.alphabetUpper = undefined
+            _loc.accentsLower = undefined
+            _loc.accentsUpper = undefined
+            _loc.symbols = undefined
+        }
+
+        const assets = new ControlSmokeAssets()
+        // Spanish alphabet: the base 26 letters plus the n-tilde pair after n.
+        const esLower = "abcdefghijklmnñopqrstuvwxyz"
+        const esUpper = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ"
+
+        // Group 1: no _loc charset fields means the ASCII default is untouched.
+        resetLoc()
+        const defaultModal = new UiTextEntryModal({
+            modalScopeId: "charset-default",
+            allowDigits: true,
+        })
+        const defaultMeasured = new UiMeasuredSize()
+        defaultModal.measure({ maxWidth: 160, maxHeight: 120 }, defaultMeasured)
+        defaultModal.arrange(new Rect(0, 0, 160, defaultMeasured.preferredHeight))
+        const defaultFocus = new UiFocusState()
+        const defaultController = new UiFocusInputController(defaultFocus)
+        defaultFocus.setScope({ id: "charset-default-parent" })
+        defaultFocus.setActiveScope("charset-default-parent")
+        defaultModal.open(defaultFocus, defaultController)
+        const defaultSurface = new ControlSmokeSurface()
+        defaultModal.render(defaultSurface, assets, defaultFocus)
+        control.assert(
+            defaultMeasured.preferredHeight == 67,
+            "charset default height unchanged",
+        )
+        control.assert(
+            defaultSurface.log.indexOf("text:a;") >= 0,
+            "charset default renders a",
+        )
+        control.assert(
+            defaultSurface.log.indexOf("text:z;") >= 0,
+            "charset default renders z",
+        )
+        control.assert(
+            defaultSurface.log.indexOf("text:ABC;") >= 0,
+            "charset default shift caption present",
+        )
+
+        // Group 2: an injected _loc alphabet renders and accepts its new letter.
+        resetLoc()
+        _loc.alphabetLower = esLower
+        _loc.alphabetUpper = esUpper
+        let injectedResult: UiTextEntryResult = undefined
+        const injected = new UiTextEntryModal({
+            modalScopeId: "charset-es",
+            allowDigits: true,
+            onResult: result => {
+                injectedResult = result
+            },
+        })
+        const injMeasured = new UiMeasuredSize()
+        injected.measure({ maxWidth: 160, maxHeight: 120 }, injMeasured)
+        injected.arrange(new Rect(0, 0, 160, injMeasured.preferredHeight))
+        const injFocus = new UiFocusState()
+        const injController = new UiFocusInputController(injFocus)
+        injFocus.setScope({ id: "charset-es-parent" })
+        injFocus.setActiveScope("charset-es-parent")
+        injected.open(injFocus, injController)
+        const injLower = new ControlSmokeSurface()
+        injected.render(injLower, assets, injFocus)
+        control.assert(
+            injMeasured.preferredHeight == 80,
+            "charset injected height grows for third letter row",
+        )
+        control.assert(
+            injLower.log.indexOf("text:ñ;") >= 0,
+            "charset injected renders n-tilde key",
+        )
+        control.assert(
+            injLower.log.indexOf("text:Ñ;") < 0,
+            "charset injected lowercase before shift",
+        )
+        control.assert(
+            injLower.log.indexOf("text:ABC;") >= 0,
+            "charset injected shift present",
+        )
+
+        // Case toggle maps the pair to uppercase and back to lowercase.
+        injFocus.setActiveTarget("charset-es", "charset-es/27")
+        injected.handleFocusInput(
+            injController.handleInput({ action: "activate" }),
+        )
+        const injUpper = new ControlSmokeSurface()
+        injected.render(injUpper, assets, injFocus)
+        control.assert(
+            injUpper.log.indexOf("text:Ñ;") >= 0,
+            "charset injected renders uppercase n-tilde after shift",
+        )
+        control.assert(
+            injUpper.log.indexOf("text:abc;") >= 0,
+            "charset injected shift caption toggles",
+        )
+        injFocus.setActiveTarget("charset-es", "charset-es/27")
+        injected.handleFocusInput(
+            injController.handleInput({ action: "activate" }),
+        )
+        const injBack = new ControlSmokeSurface()
+        injected.render(injBack, assets, injFocus)
+        control.assert(
+            injBack.log.indexOf("text:ñ;") >= 0,
+            "charset injected maps back to lowercase",
+        )
+        control.assert(
+            injBack.log.indexOf("text:Ñ;") < 0,
+            "charset injected uppercase gone after toggle back",
+        )
+
+        // Typing and committing the new letter flows through the modal value.
+        injFocus.setActiveTarget("charset-es", "charset-es/14")
+        injected.handleFocusInput(
+            injController.handleInput({ action: "activate" }),
+        )
+        injFocus.setActiveTarget("charset-es", "charset-es/32")
+        const injCompleted = injected.handleFocusInput(
+            injController.handleInput({ action: "activate" }),
+        )
+        control.assert(
+            injCompleted.kind == "completed",
+            "charset injected commit completes",
+        )
+        control.assert(
+            (<any>injCompleted).text == "ñ",
+            "charset injected typed value",
+        )
+        control.assert(
+            injectedResult && (<any>injectedResult).text == "ñ",
+            "charset injected result callback",
+        )
+
+        // initialText holding the injected letter survives normalization.
+        const injInitial = new UiTextEntryModal({
+            modalScopeId: "charset-es-initial",
+            initialText: "ñ",
+        })
+        injInitial.arrange(new Rect(0, 0, 160, 80))
+        const injInitFocus = new UiFocusState()
+        const injInitController = new UiFocusInputController(injInitFocus)
+        injInitFocus.setScope({ id: "charset-es-initial-parent" })
+        injInitFocus.setActiveScope("charset-es-initial-parent")
+        injInitial.open(injInitFocus, injInitController)
+        injInitFocus.setActiveTarget(
+            "charset-es-initial",
+            "charset-es-initial/32",
+        )
+        const injInitResult = injInitial.handleFocusInput(
+            injInitController.handleInput({ action: "activate" }),
+        )
+        control.assert(
+            injInitResult && injInitResult.kind == "completed",
+            "charset injected initial text commits",
+        )
+        control.assert(
+            (<any>injInitResult).text == "ñ",
+            "charset injected initial text not stripped",
+        )
+
+        // Group 3: a per-modal override beats the assigned _loc alphabet.
+        resetLoc()
+        _loc.alphabetLower = esLower
+        _loc.alphabetUpper = esUpper
+        const overrideModal = new UiTextEntryModal({
+            modalScopeId: "charset-override",
+            charset: { lower: "abcde", upper: "ABCDE" },
+        })
+        const overrideMeasured = new UiMeasuredSize()
+        overrideModal.measure({ maxWidth: 160, maxHeight: 120 }, overrideMeasured)
+        overrideModal.arrange(
+            new Rect(0, 0, 160, overrideMeasured.preferredHeight),
+        )
+        const overrideFocus = new UiFocusState()
+        const overrideController = new UiFocusInputController(overrideFocus)
+        overrideFocus.setScope({ id: "charset-override-parent" })
+        overrideFocus.setActiveScope("charset-override-parent")
+        overrideModal.open(overrideFocus, overrideController)
+        const overrideSurface = new ControlSmokeSurface()
+        overrideModal.render(overrideSurface, assets, overrideFocus)
+        control.assert(
+            overrideSurface.log.indexOf("text:a;") >= 0,
+            "charset override renders first letter",
+        )
+        control.assert(
+            overrideSurface.log.indexOf("text:e;") >= 0,
+            "charset override renders last letter",
+        )
+        control.assert(
+            overrideSurface.log.indexOf("text:ñ;") < 0,
+            "charset override beats loc alphabet",
+        )
+
+        // Group 4: a caseless charset (upper equals lower) hides the shift key.
+        resetLoc()
+        _loc.alphabetLower = "abcdefghijklmnopqrstuvwxyz"
+        _loc.alphabetUpper = "abcdefghijklmnopqrstuvwxyz"
+        const caselessModal = new UiTextEntryModal({
+            modalScopeId: "charset-caseless",
+            allowDigits: true,
+        })
+        const caselessMeasured = new UiMeasuredSize()
+        caselessModal.measure({ maxWidth: 160, maxHeight: 120 }, caselessMeasured)
+        caselessModal.arrange(
+            new Rect(0, 0, 160, caselessMeasured.preferredHeight),
+        )
+        const caselessFocus = new UiFocusState()
+        const caselessController = new UiFocusInputController(caselessFocus)
+        caselessFocus.setScope({ id: "charset-caseless-parent" })
+        caselessFocus.setActiveScope("charset-caseless-parent")
+        caselessModal.open(caselessFocus, caselessController)
+        const caselessSurface = new ControlSmokeSurface()
+        caselessModal.render(caselessSurface, assets, caselessFocus)
+        control.assert(
+            caselessSurface.log.indexOf("text:a;") >= 0,
+            "charset caseless renders letters",
+        )
+        control.assert(
+            caselessSurface.log.indexOf("text:ABC;") < 0,
+            "charset caseless has no shift caption",
+        )
+
+        // Group 5: a symbols override drives the symbol page.
+        resetLoc()
+        let symResult: UiTextEntryResult = undefined
+        const symbolsModal = new UiTextEntryModal({
+            modalScopeId: "charset-symbols",
+            allowDigits: true,
+            allowSymbols: true,
+            charset: { symbols: "~%^" },
+            onResult: result => {
+                symResult = result
+            },
+        })
+        const symMeasured = new UiMeasuredSize()
+        symbolsModal.measure({ maxWidth: 160, maxHeight: 120 }, symMeasured)
+        symbolsModal.arrange(new Rect(0, 0, 160, symMeasured.preferredHeight))
+        const symFocus = new UiFocusState()
+        const symController = new UiFocusInputController(symFocus)
+        symFocus.setScope({ id: "charset-symbols-parent" })
+        symFocus.setActiveScope("charset-symbols-parent")
+        symbolsModal.open(symFocus, symController)
+        // Letters page to digits page to symbols page via the page toggles.
+        symFocus.setActiveTarget("charset-symbols", "charset-symbols/27")
+        symbolsModal.handleFocusInput(
+            symController.handleInput({ action: "activate" }),
+        )
+        symFocus.setActiveTarget("charset-symbols", "charset-symbols/27")
+        symbolsModal.handleFocusInput(
+            symController.handleInput({ action: "activate" }),
+        )
+        const symSurface = new ControlSmokeSurface()
+        symbolsModal.render(symSurface, assets, symFocus)
+        control.assert(
+            symSurface.log.indexOf("text:~;") >= 0,
+            "charset symbols override renders first symbol",
+        )
+        control.assert(
+            symSurface.log.indexOf("text:%;") >= 0,
+            "charset symbols override renders second symbol",
+        )
+        control.assert(
+            symSurface.log.indexOf("text:!;") < 0,
+            "charset symbols override replaces default symbols",
+        )
+        symFocus.setActiveTarget("charset-symbols", "charset-symbols/0")
+        symbolsModal.handleFocusInput(
+            symController.handleInput({ action: "activate" }),
+        )
+        symFocus.setActiveTarget("charset-symbols", "charset-symbols/31")
+        const symCompleted = symbolsModal.handleFocusInput(
+            symController.handleInput({ action: "activate" }),
+        )
+        control.assert(
+            (<any>symCompleted).text == "~",
+            "charset symbols override accepts a symbol",
+        )
+        control.assert(
+            symResult && (<any>symResult).text == "~",
+            "charset symbols override result callback",
+        )
+
+        resetLoc()
+    }
+
+    /**
+     * Smoke harness for the keyboard accents page. Verifies that with no accent
+     * set the letters page still routes to digits and shows no accents caption,
+     * that an injected accent set adds a reachable accents page whose keys render
+     * and commit, that accent case follows the global uppercase flag, and that
+     * the home key returns from an extra page to the letters page.
+     */
+    export function runTextEntryAccentsSmokeTest(): void {
+        function resetLoc(): void {
+            _loc.table = undefined
+            _loc.alphabetLower = undefined
+            _loc.alphabetUpper = undefined
+            _loc.accentsLower = undefined
+            _loc.accentsUpper = undefined
+            _loc.symbols = undefined
+        }
+
+        const assets = new ControlSmokeAssets()
+        // A 26-letter base alphabet keeps the action row at indices 26..31:
+        // shift 26, page 27, space 28, custom 29, backspace 30, enter 31.
+        const baseLower = "abcdefghijklmnopqrstuvwxyz"
+        const baseUpper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+        function activateIndex(
+            modal: UiTextEntryModal,
+            focus: UiFocusState,
+            controller: UiFocusInputController,
+            scopeId: string,
+            index: number,
+        ): UiTextEntryResult {
+            focus.setActiveTarget(scopeId, scopeId + "/" + index)
+            return modal.handleFocusInput(
+                controller.handleInput({ action: "activate" }),
+            )
+        }
+
+        // Group 1: no accent set means the letters page routes to digits and
+        // shows no accents caption. Confirms the default keyboard is unchanged.
+        resetLoc()
+        const noAccents = new UiTextEntryModal({
+            modalScopeId: "accents-none",
+            allowDigits: true,
+        })
+        const noAccentsMeasured = new UiMeasuredSize()
+        noAccents.measure({ maxWidth: 160, maxHeight: 120 }, noAccentsMeasured)
+        noAccents.arrange(
+            new Rect(0, 0, 160, noAccentsMeasured.preferredHeight),
+        )
+        const noAccentsFocus = new UiFocusState()
+        const noAccentsController = new UiFocusInputController(noAccentsFocus)
+        noAccentsFocus.setScope({ id: "accents-none-parent" })
+        noAccentsFocus.setActiveScope("accents-none-parent")
+        noAccents.open(noAccentsFocus, noAccentsController)
+        const noAccentsLetters = new ControlSmokeSurface()
+        noAccents.render(noAccentsLetters, assets, noAccentsFocus)
+        control.assert(
+            noAccentsLetters.log.indexOf("text:123;") >= 0,
+            "accents none letters page routes to digits",
+        )
+        control.assert(
+            noAccentsLetters.log.indexOf("text:áé;") < 0,
+            "accents none shows no accents caption",
+        )
+        activateIndex(
+            noAccents,
+            noAccentsFocus,
+            noAccentsController,
+            "accents-none",
+            27,
+        )
+        const noAccentsDigits = new ControlSmokeSurface()
+        noAccents.render(noAccentsDigits, assets, noAccentsFocus)
+        control.assert(
+            noAccentsDigits.log.indexOf("text:1;") >= 0,
+            "accents none digits page reachable",
+        )
+
+        // Group 2: an injected accent set adds a reachable accents page whose
+        // key renders and commits through the modal value and onResult.
+        resetLoc()
+        _loc.alphabetLower = baseLower
+        _loc.alphabetUpper = baseUpper
+        _loc.accentsLower = "áé"
+        _loc.accentsUpper = "ÁÉ"
+        let accentResult: UiTextEntryResult = undefined
+        const accents = new UiTextEntryModal({
+            modalScopeId: "accents-es",
+            allowDigits: true,
+            onResult: result => {
+                accentResult = result
+            },
+        })
+        const accentsMeasured = new UiMeasuredSize()
+        accents.measure({ maxWidth: 160, maxHeight: 120 }, accentsMeasured)
+        accents.arrange(new Rect(0, 0, 160, accentsMeasured.preferredHeight))
+        const accentsFocus = new UiFocusState()
+        const accentsController = new UiFocusInputController(accentsFocus)
+        accentsFocus.setScope({ id: "accents-es-parent" })
+        accentsFocus.setActiveScope("accents-es-parent")
+        accents.open(accentsFocus, accentsController)
+        const accentsLetters = new ControlSmokeSurface()
+        accents.render(accentsLetters, assets, accentsFocus)
+        control.assert(
+            accentsLetters.log.indexOf("text:áé;") >= 0,
+            "accents present letters page shows accents caption",
+        )
+        activateIndex(
+            accents,
+            accentsFocus,
+            accentsController,
+            "accents-es",
+            27,
+        )
+        const accentsPage = new ControlSmokeSurface()
+        accents.render(accentsPage, assets, accentsFocus)
+        control.assert(
+            accentsPage.log.indexOf("text:á;") >= 0,
+            "accents page renders accent key",
+        )
+        activateIndex(accents, accentsFocus, accentsController, "accents-es", 0)
+        const accentCommit = activateIndex(
+            accents,
+            accentsFocus,
+            accentsController,
+            "accents-es",
+            31,
+        )
+        control.assert(
+            accentCommit.kind == "completed",
+            "accents commit completes",
+        )
+        control.assert(
+            (<any>accentCommit).text == "á",
+            "accents commit typed value",
+        )
+        control.assert(
+            accentResult && (<any>accentResult).text == "á",
+            "accents commit result callback",
+        )
+
+        // Group 3: accent case follows the global uppercase flag set on the
+        // letters page; the accents page has no case-toggle of its own.
+        const accentsCase = new UiTextEntryModal({
+            modalScopeId: "accents-upper",
+            allowDigits: true,
+        })
+        const accentsCaseMeasured = new UiMeasuredSize()
+        accentsCase.measure(
+            { maxWidth: 160, maxHeight: 120 },
+            accentsCaseMeasured,
+        )
+        accentsCase.arrange(
+            new Rect(0, 0, 160, accentsCaseMeasured.preferredHeight),
+        )
+        const accentsCaseFocus = new UiFocusState()
+        const accentsCaseController = new UiFocusInputController(
+            accentsCaseFocus,
+        )
+        accentsCaseFocus.setScope({ id: "accents-upper-parent" })
+        accentsCaseFocus.setActiveScope("accents-upper-parent")
+        accentsCase.open(accentsCaseFocus, accentsCaseController)
+        activateIndex(
+            accentsCase,
+            accentsCaseFocus,
+            accentsCaseController,
+            "accents-upper",
+            26,
+        )
+        activateIndex(
+            accentsCase,
+            accentsCaseFocus,
+            accentsCaseController,
+            "accents-upper",
+            27,
+        )
+        const accentsUpperPage = new ControlSmokeSurface()
+        accentsCase.render(accentsUpperPage, assets, accentsCaseFocus)
+        control.assert(
+            accentsUpperPage.log.indexOf("text:Á;") >= 0,
+            "accents page follows uppercase flag",
+        )
+        activateIndex(
+            accentsCase,
+            accentsCaseFocus,
+            accentsCaseController,
+            "accents-upper",
+            0,
+        )
+        const accentUpperCommit = activateIndex(
+            accentsCase,
+            accentsCaseFocus,
+            accentsCaseController,
+            "accents-upper",
+            31,
+        )
+        control.assert(
+            (<any>accentUpperCommit).text == "Á",
+            "accents commit uppercase value",
+        )
+
+        // Group 4: the home key returns from an extra page to the letters page.
+        const accentsHome = new UiTextEntryModal({
+            modalScopeId: "accents-home",
+            allowDigits: true,
+        })
+        const accentsHomeMeasured = new UiMeasuredSize()
+        accentsHome.measure(
+            { maxWidth: 160, maxHeight: 120 },
+            accentsHomeMeasured,
+        )
+        accentsHome.arrange(
+            new Rect(0, 0, 160, accentsHomeMeasured.preferredHeight),
+        )
+        const accentsHomeFocus = new UiFocusState()
+        const accentsHomeController = new UiFocusInputController(
+            accentsHomeFocus,
+        )
+        accentsHomeFocus.setScope({ id: "accents-home-parent" })
+        accentsHomeFocus.setActiveScope("accents-home-parent")
+        accentsHome.open(accentsHomeFocus, accentsHomeController)
+        activateIndex(
+            accentsHome,
+            accentsHomeFocus,
+            accentsHomeController,
+            "accents-home",
+            27,
+        )
+        activateIndex(
+            accentsHome,
+            accentsHomeFocus,
+            accentsHomeController,
+            "accents-home",
+            26,
+        )
+        const accentsHomeLetters = new ControlSmokeSurface()
+        accentsHome.render(accentsHomeLetters, assets, accentsHomeFocus)
+        control.assert(
+            accentsHomeLetters.log.indexOf("text:a;") >= 0,
+            "accents home key returns to letters page",
+        )
+
+        resetLoc()
+    }
+
+    /**
      * Smoke harness for control-caption localization and the localized default
      * font. Verifies that with no catalog the English source captions render
      * unchanged, that an assigned catalog replaces a rendered caption, and that
@@ -1870,6 +2412,8 @@ namespace ui.controls.test {
     runScreenControllerSmokeTest()
     runNumericEntrySmokeTest()
     runTextEntrySmokeTest()
+    runTextEntryCharsetSmokeTest()
+    runTextEntryAccentsSmokeTest()
     runLocalizationSmokeTest()
 
     control.__log(1, "All tests passed!")

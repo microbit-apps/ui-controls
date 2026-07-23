@@ -1,9 +1,10 @@
 {
     "scripts": {
         "format": "prettier --write \"**/*.ts\"",
-        "loc:strings": "node scripts/locstrings.mjs"
+        "loc:strings": "loc-strings"
     },
     "devDependencies": {
-        "prettier": "^3.8.3"
+        "prettier": "^3.8.3",
+        "@microbit-apps/ui-core": "github:microbit-apps/ui-core#v0.0.6"
     }
 }

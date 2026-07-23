@@ -1,0 +1,71 @@
+{
+    "fr": {
+        "accentsLower": "àâäçéèêëîïôöùûüÿœ",
+        "accentsUpper": "ÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŸŒ"
+    },
+    "es": {
+        "alphabetLower": "abcdefghijklmnñopqrstuvwxyz",
+        "alphabetUpper": "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ",
+        "accentsLower": "áéíóúü",
+        "accentsUpper": "ÁÉÍÓÚÜ",
+        "symbols": "-_.,!?@#¡¿"
+    },
+    "ca": {
+        "accentsLower": "àçéèíïóòúü",
+        "accentsUpper": "ÀÇÉÈÍÏÓÒÚÜ"
+    },
+    "it": {
+        "accentsLower": "àèéìòù",
+        "accentsUpper": "ÀÈÉÌÒÙ"
+    },
+    "pt": {
+        "accentsLower": "áàâãçéêíóôõú",
+        "accentsUpper": "ÁÀÂÃÇÉÊÍÓÔÕÚ"
+    },
+    "de": {
+        "alphabetLower": "abcdefghijklmnopqrstuvwxyzäöü",
+        "alphabetUpper": "ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÜ"
+    },
+    "nl": {
+        "accentsLower": "áéèëíïóöúü",
+        "accentsUpper": "ÁÉÈËÍÏÓÖÚÜ"
+    },
+    "pl": {
+        "alphabetLower": "aąbcćdeęfghijklłmnńoópqrsśtuvwxyzźż",
+        "alphabetUpper": "AĄBCĆDEĘFGHIJKLŁMNŃOÓPQRSŚTUVWXYZŹŻ"
+    },
+    "cs": {
+        "accentsLower": "áčďéěíňóřšťúůýž",
+        "accentsUpper": "ÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ"
+    },
+    "ru": {
+        "alphabetLower": "абвгдеёжзийклмнопрстуфхцчшщъыьэюя",
+        "alphabetUpper": "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
+    },
+    "hr": {
+        "alphabetLower": "abcčćdđefghijklmnoprsštuvzž",
+        "alphabetUpper": "ABCČĆDĐEFGHIJKLMNOPRSŠTUVZŽ"
+    },
+    "hu": {
+        "alphabetLower": "aábcdeéfghiíjklmnoóöőpqrstuúüűvwxyz",
+        "alphabetUpper": "AÁBCDEÉFGHIÍJKLMNOÓÖŐPQRSTUÚÜŰVWXYZ"
+    },
+    "tr": {
+        "alphabetLower": "abcçdefgğhıijklmnoöprsştuüvyz",
+        "alphabetUpper": "ABCÇDEFGĞHIİJKLMNOÖPRSŞTUÜVYZ"
+    },
+    "eu": {
+        "alphabetLower": "abcdefghijklmnñopqrstuvwxyz",
+        "alphabetUpper": "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ",
+        "accentsLower": "çü",
+        "accentsUpper": "ÇÜ"
+    },
+    "cy": {
+        "accentsLower": "âêîôûŵŷ",
+        "accentsUpper": "ÂÊÎÔÛŴŶ"
+    },
+    "fil": {
+        "alphabetLower": "abcdefghijklmnñopqrstuvwxyz",
+        "alphabetUpper": "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ"
+    }
+}
