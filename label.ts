@@ -1,5 +1,4 @@
 namespace ui {
-    const LABEL_DEFAULT_FONT = bitmaps.font8
     const LABEL_CONTENT_GAP = 3
 
     /**
@@ -63,7 +62,7 @@ namespace ui {
                 this.content_ = undefined
                 this.color_ = color !== undefined ? color : 1
                 this.backgroundColor_ = undefined
-                this.font_ = LABEL_DEFAULT_FONT
+                this.font_ = locFont()
                 this.width_ = 0
                 this.height_ = 0
             } else {
@@ -72,7 +71,7 @@ namespace ui {
                 this.content_ = options
                 this.color_ = options.color !== undefined ? options.color : 1
                 this.backgroundColor_ = options.backgroundColor
-                this.font_ = options.font || LABEL_DEFAULT_FONT
+                this.font_ = options.font || locFont()
                 this.width_ = _uiControls.sizeWidth(options.size, 0)
                 this.height_ = _uiControls.sizeHeight(options.size, 0)
             }

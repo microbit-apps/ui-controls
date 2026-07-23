@@ -1785,11 +1785,92 @@ namespace ui.controls.test {
             "text modal custom callback",
         )
     }
+
+    /**
+     * Smoke harness for control-caption localization and the localized default
+     * font. Verifies that with no catalog the English source captions render
+     * unchanged, that an assigned catalog replaces a rendered caption, and that
+     * an assigned default font drives control measurement.
+     */
+    export function runLocalizationSmokeTest(): void {
+        // Baseline: no catalog and no default font means identity behavior.
+        _loc.table = undefined
+        _loc.defaultFont = undefined
+        control.assert(loc("OK") == "OK", "loc caption identity no table")
+        control.assert(loc("space") == "space", "loc space identity no table")
+
+        const modal = new UiTextEntryModal({
+            modalScopeId: "loc-text-modal",
+            allowWhitespace: true,
+        })
+        modal.measure({ maxWidth: 160, maxHeight: 120 }, new UiMeasuredSize())
+        modal.arrange(new Rect(0, 0, 160, 67))
+        const modalFocus = new UiFocusState()
+        const modalController = new UiFocusInputController(modalFocus)
+        modalFocus.setScope({ id: "loc-text-parent" })
+        modalFocus.setActiveScope("loc-text-parent")
+        modal.open(modalFocus, modalController)
+
+        const srcSurface = new ControlSmokeSurface()
+        modal.render(srcSurface, new ControlSmokeAssets(), modalFocus)
+        control.assert(
+            srcSurface.log.indexOf("text:OK;") >= 0,
+            "text modal renders source enter caption",
+        )
+        control.assert(
+            srcSurface.log.indexOf("text:space;") >= 0,
+            "text modal renders source space caption",
+        )
+
+        // Catalog hit: the same reachable render path picks up the translation.
+        _loc.table = {
+            OK: "Valider",
+            space: "espace",
+        }
+        const localizedSurface = new ControlSmokeSurface()
+        modal.render(localizedSurface, new ControlSmokeAssets(), modalFocus)
+        control.assert(loc("OK") == "Valider", "loc caption table hit")
+        control.assert(
+            localizedSurface.log.indexOf("text:Valider;") >= 0,
+            "text modal renders localized enter caption",
+        )
+        control.assert(
+            localizedSurface.log.indexOf("text:espace;") >= 0,
+            "text modal renders localized space caption",
+        )
+        _loc.table = undefined
+
+        // Assigned default font drives control measurement at the use site.
+        const wideFont: TextFont = {
+            charWidth: 12,
+            charHeight: 5,
+            data: hex``,
+        }
+        _loc.defaultFont = wideFont
+        const measured = new UiMeasuredSize()
+        const localizedLabel = label("AB")
+        localizedLabel.measure({ maxWidth: 160, maxHeight: 120 }, measured)
+        control.assert(
+            measured.preferredWidth == 24,
+            "label measure uses localized default font width",
+        )
+        _loc.defaultFont = undefined
+        const defaultMeasured = new UiMeasuredSize()
+        const defaultLabel = label("AB")
+        defaultLabel.measure({ maxWidth: 160, maxHeight: 120 }, defaultMeasured)
+        control.assert(
+            defaultMeasured.preferredWidth ==
+                "AB".length * bitmaps.font8.charWidth,
+            "label measure reverts to font8 when default font unset",
+        )
+    }
+
     runControlButtonSmokeTest()
     runPickerSmokeTest()
     runScreenControllerSmokeTest()
     runNumericEntrySmokeTest()
     runTextEntrySmokeTest()
+    runLocalizationSmokeTest()
 
     control.__log(1, "All tests passed!")
 }
