@@ -2334,6 +2334,175 @@ namespace ui.controls.test {
      * unchanged, that an assigned catalog replaces a rendered caption, and that
      * an assigned default font drives control measurement.
      */
+    function stackSmokeControls(
+        prefix: string,
+        count: number,
+    ): UiControl<string>[] {
+        const controls: UiControl<string>[] = []
+        for (let i = 0; i < count; i++)
+            controls.push(button<string>(prefix + i, prefix + i, () => {}))
+        return controls
+    }
+
+    export function runStackCompositionSmokeTest(): void {
+        const runtime = new UiRuntime(
+            new RuntimeSmokeDisplayAdapter(() => {}),
+            new ControlSmokeAssets(),
+        )
+        const screen = new ControlSmokeScreen(runtime, () => undefined)
+
+        // A row, a two-row grid and a button, composed into one scope owned by
+        // the stack. The label contributes no targets and is skipped.
+        const rowControls = stackSmokeControls("r", 3)
+        const gridControls = stackSmokeControls("g", 4)
+        const row = new UiRow<string>({
+            controls: rowControls,
+            controlSize: { width: 30, height: 16 },
+            gap: 4,
+        })
+        const grid = new UiGrid<string>({
+            controls: gridControls,
+            columnCount: 2,
+            controlSize: { width: 30, height: 16 },
+            rowGap: 4,
+            columnGap: 4,
+        })
+        const done = new UiButton<string>({
+            id: "done",
+            text: "Done",
+            size: { width: 40, height: 16 },
+        })
+        const stack = new UiStack({
+            orientation: "column",
+            scopeId: "stack",
+            alignment: "center",
+            wrap: true,
+            gap: 4,
+            children: [
+                { view: new UiLabel("Header", 1) },
+                { view: row },
+                { view: grid },
+                { view: done },
+            ],
+        })
+        screen.add(stack, {
+            x: 0,
+            y: 0,
+            width: STANDARD_DISPLAY_WIDTH,
+            horizontalAlignment: "center",
+        })
+        screen._enter()
+
+        control.assert(
+            row.scopeId == "stack" && grid.scopeId == "stack",
+            "stack assigns its scope to composed children",
+        )
+        control.assert(
+            screen.focus.getActiveTargetId("stack") == "stack/r0",
+            "stack focuses the first target of its first focusable child",
+        )
+
+        // Down crosses from the row into the grid, through the grid's own rows,
+        // and on into the button, landing nearest the control it came from.
+        control.assert(screen.routeInput({ action: "down" }), "stack down row")
+        control.assert(
+            screen.focus.getActiveTargetId("stack") == "stack/g0",
+            "stack down enters the grid nearest the source",
+        )
+        control.assert(screen.routeInput({ action: "down" }), "stack down grid")
+        control.assert(
+            screen.focus.getActiveTargetId("stack") == "stack/g2",
+            "stack down moves within the grid",
+        )
+        control.assert(
+            screen.routeInput({ action: "down" }),
+            "stack down button",
+        )
+        control.assert(
+            screen.focus.getActiveTargetId("stack") == "stack/done",
+            "stack down reaches the button",
+        )
+        control.assert(
+            !screen.routeInput({ action: "down" }),
+            "stack down past the last child is unhandled",
+        )
+        control.assert(screen.routeInput({ action: "up" }), "stack up button")
+        control.assert(
+            screen.focus.getActiveTargetId("stack") == "stack/g2",
+            "stack up returns to the grid",
+        )
+
+        // Wrapping stays inside the child that owns the row of targets.
+        screen.focus.setActiveTarget("stack", "stack/r0")
+        control.assert(screen.routeInput({ action: "left" }), "stack wrap left")
+        control.assert(
+            screen.focus.getActiveTargetId("stack") == "stack/r2",
+            "stack left wraps within the row",
+        )
+
+        control.assert(
+            screen.routeInput({ action: "activate" }),
+            "stack forwards activation to a composed child",
+        )
+
+        // A child whose controls are all hidden is stepped over.
+        for (let i = 0; i < gridControls.length; i++)
+            gridControls[i].visible = false
+        stack.registerFocusTargets(screen.focus)
+        screen.focus.setActiveTarget("stack", "stack/r1")
+        control.assert(
+            screen.routeInput({ action: "down" }),
+            "stack down past hidden child",
+        )
+        control.assert(
+            screen.focus.getActiveTargetId("stack") == "stack/done",
+            "stack skips a child with no visible targets",
+        )
+
+        // A stack with no scope of its own leaves its children to the scopes
+        // they came with, rather than swallowing their registration.
+        const layoutRuntime = new UiRuntime(
+            new RuntimeSmokeDisplayAdapter(() => {}),
+            new ControlSmokeAssets(),
+        )
+        const layoutScreen = new ControlSmokeScreen(
+            layoutRuntime,
+            () => undefined,
+        )
+        const ownRow = new UiRow<string>({
+            scopeId: "own-row",
+            controls: stackSmokeControls("o", 2),
+            controlSize: { width: 30, height: 16 },
+            gap: 4,
+            wrap: true,
+        })
+        layoutScreen.add(
+            new UiStack({
+                orientation: "column",
+                children: [{ view: new UiLabel("Plain", 1) }, { view: ownRow }],
+                gap: 4,
+            }),
+            { x: 0, y: 0, width: STANDARD_DISPLAY_WIDTH },
+        )
+        layoutScreen._enter()
+        control.assert(
+            ownRow.scopeId == "own-row",
+            "layout-only stack leaves a child's scope alone",
+        )
+        control.assert(
+            layoutScreen.focus.getActiveTargetId("own-row") == "own-row/o0",
+            "layout-only stack focuses a child that owns its scope",
+        )
+        control.assert(
+            layoutScreen.routeInput({ action: "right" }),
+            "layout-only stack child navigates itself",
+        )
+        control.assert(
+            layoutScreen.focus.getActiveTargetId("own-row") == "own-row/o1",
+            "layout-only stack forwards child navigation",
+        )
+    }
+
     export function runLocalizationSmokeTest(): void {
         // Baseline: no catalog and no default font means identity behavior.
         _loc.table = undefined
@@ -2414,6 +2583,7 @@ namespace ui.controls.test {
     runTextEntrySmokeTest()
     runTextEntryCharsetSmokeTest()
     runTextEntryAccentsSmokeTest()
+    runStackCompositionSmokeTest()
     runLocalizationSmokeTest()
 
     control.__log(1, "All tests passed!")

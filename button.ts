@@ -494,7 +494,9 @@ namespace ui {
      * Screen-managed button with retained layout, focus, rendering, and activation.
      */
     export class UiButton<T = string>
-        implements UiFocusableView<UiButtonResult<T>>, UiFocusNavigationProvider
+        implements
+            UiComposableFocusView<UiButtonResult<T>>,
+            UiFocusNavigationProvider
     {
         public readonly layoutSpec: UiLayoutSpec
         public readonly finalRect: Rect
@@ -540,6 +542,15 @@ namespace ui {
          */
         public get scopeId(): UiFocusScopeId {
             return this.scopeId_
+        }
+
+        /**
+         * Adopts an owner scope, so a parent view can navigate this button
+         * together with its siblings. The target id is derived from the scope,
+         * so this runs before focus registration.
+         */
+        public setScopeId(scopeId: UiFocusScopeId): void {
+            this.scopeId_ = scopeId
         }
 
         /**
@@ -612,22 +623,57 @@ namespace ui {
         /**
          * Registers this button's focus scope and target.
          */
-        public registerFocusTargets(focus: UiFocusState): void {
+        public registerFocusTargets(
+            focus: UiFocusState,
+            scopeOptions?: UiFocusScopeOptions,
+        ): void {
             const targetId = this.targetId()
             const focusable = this.isNavigationControl()
-            focus.setScope({
-                id: this.scopeId_,
-                preferredTargetId: focusable ? targetId : undefined,
-            })
-            if (!focusable) return
+            focus.setScope(
+                scopeOptions || {
+                    id: this.scopeId_,
+                    preferredTargetId: focusable ? targetId : undefined,
+                },
+            )
+            // Registered hidden rather than skipped when it cannot take focus,
+            // so that focus state drops a retained target when the button is
+            // hidden between registrations.
             focus.setTarget({
                 id: targetId,
                 scopeId: this.scopeId_,
                 rect: this.finalRect,
                 scrollOwnerId: this.scrollOwnerId_,
                 scrollRect: this.scrollOwnerId_ ? this.finalRect : undefined,
+                hidden: !focusable,
                 activatable: true,
             })
+        }
+
+        /**
+         * Navigation targets as a single row holding this button, for parent
+         * views that compose several views into one focus scope.
+         */
+        public navigationRows(): UiFocusNavigationTarget[][] {
+            return [
+                [
+                    {
+                        id: this.targetId(),
+                        rect: this.finalRect,
+                        scrollOwnerId: this.scrollOwnerId_,
+                        scrollRect: this.scrollOwnerId_
+                            ? this.finalRect
+                            : undefined,
+                        hidden: !this.isNavigationControl(),
+                    },
+                ],
+            ]
+        }
+
+        /**
+         * Returns this button's target id when it can take focus.
+         */
+        public resolvePreferredTargetId(): UiFocusId | undefined {
+            return this.isNavigationControl() ? this.targetId() : undefined
         }
 
         /**
@@ -737,21 +783,42 @@ namespace ui {
             assets: UiAssetResolver,
             focus?: UiFocusState,
         ): void {
+            this.renderControls(surface, assets, focus)
+            this.renderFocus(surface, assets, focus)
+        }
+
+        /**
+         * Renders the button without its focused overlay.
+         */
+        public renderControls(
+            surface: DrawSurface,
+            assets: UiAssetResolver,
+            focus?: UiFocusState,
+        ): void {
             if (!_uiControls.isVisible(this.control_)) return
-            const labelBounds = _uiControls.resolveLabelBounds(
-                surface,
-                this.labelBounds_,
-            )
             _uiControls.renderControl(
                 surface,
                 this.control_,
                 this.finalRect,
                 this.controlView_,
                 undefined,
-                labelBounds,
+                _uiControls.resolveLabelBounds(surface, this.labelBounds_),
                 undefined,
                 assets,
             )
+        }
+
+        /**
+         * Renders only this button's focus treatment, which a parent draws in a
+         * later pass so that the focus label is not covered by a view rendered
+         * after it.
+         */
+        public renderFocus(
+            surface: DrawSurface,
+            assets: UiAssetResolver,
+            focus?: UiFocusState,
+        ): void {
+            if (!_uiControls.isVisible(this.control_)) return
             if (
                 _uiControls.activeTargetIdForScope(focus, this.scopeId_) ==
                 this.targetId()
@@ -762,7 +829,7 @@ namespace ui {
                     this.finalRect,
                     this.controlView_,
                     undefined,
-                    labelBounds,
+                    _uiControls.resolveLabelBounds(surface, this.labelBounds_),
                     true,
                     assets,
                 )

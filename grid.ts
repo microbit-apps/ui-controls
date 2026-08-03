@@ -5,9 +5,11 @@ namespace ui {
     export interface UiGridOptions<T>
         extends UiControlCollectionOptions<T>, UiControlGridLayoutOptions {
         /**
-         * Focus scope id for this grid.
+         * Focus scope id for this grid. Required for a grid added to a screen
+         * on its own; omit it for a grid placed in a `UiStack` that owns a
+         * scope, which assigns its own.
          */
-        scopeId: UiFocusScopeId
+        scopeId?: UiFocusScopeId
 
         /**
          * Scroll owner used when this grid is arranged in scroll content.
@@ -46,11 +48,11 @@ namespace ui {
     /**
      * Renders and navigates a rectangular or ragged control grid.
      */
-    export class UiGrid<T> implements UiFocusableView<UiGridResult<T>> {
+    export class UiGrid<T> implements UiComposableFocusView<UiGridResult<T>> {
         public readonly layoutSpec: UiLayoutSpec
         public readonly finalRect: Rect
         public layoutDirty: boolean
-        private scopeId_: UiFocusScopeId
+        private scopeId_: UiFocusScopeId | undefined
         private controls_: UiControl<T>[]
         private defaultControlId_: string
         private scrollOwnerId_: UiFocusScrollOwnerId
@@ -93,8 +95,17 @@ namespace ui {
         /**
          * Focus scope id used by this grid.
          */
-        public get scopeId(): UiFocusScopeId {
+        public get scopeId(): UiFocusScopeId | undefined {
             return this.scopeId_
+        }
+
+        /**
+         * Adopts an owner scope, so a parent view can navigate this grid
+         * together with its siblings. Target ids are derived from the scope, so
+         * this runs before focus registration.
+         */
+        public setScopeId(scopeId: UiFocusScopeId): void {
+            this.scopeId_ = scopeId
         }
 
         /**
@@ -190,6 +201,10 @@ namespace ui {
             focus: UiFocusState,
             scopeOptions?: UiFocusScopeOptions,
         ): void {
+            control.assert(
+                this.scopeId_ !== undefined,
+                "grid needs a scopeId, or a parent that assigns one",
+            )
             const preferred = _uiControls.preferredControlId(
                 this.scopeId_,
                 this.controls_,
@@ -208,6 +223,7 @@ namespace ui {
          * Registers grid or ragged-grid navigation with a focus input controller.
          */
         public registerNavigation(controller: UiFocusInputController): void {
+            if (this.scopeId_ === undefined) return
             controller.setNavigation(this.scopeId_, {
                 kind: "raggedGrid",
                 rows: this.navigationRows(),
@@ -216,9 +232,12 @@ namespace ui {
         }
 
         /**
-         * Focuses the grid's retained, default, or first enabled control.
+         * Focuses the grid's retained, default, or first enabled control. A grid
+         * waiting for a parent to assign it a scope has nothing to focus.
          */
         public focusDefault(focus: UiFocusState): UiFocusSetResult {
+            if (this.scopeId_ === undefined)
+                return { kind: "rejected", reason: "missingScope" }
             return focus.setActiveScope(this.scopeId_)
         }
 
@@ -226,6 +245,9 @@ namespace ui {
          * Returns the target id chosen by default-control rules.
          */
         public resolvePreferredTargetId(): UiFocusId | undefined {
+            // Target ids are built from the scope, so a grid still waiting for a
+            // parent to assign one has no target to offer.
+            if (this.scopeId_ === undefined) return undefined
             return _uiControls.preferredControlId(
                 this.scopeId_,
                 this.controls_,
@@ -403,15 +425,17 @@ namespace ui {
             this.ensureControlRects()
             for (let i = 0; i < this.controls_.length; i++) {
                 const control = this.controls_[i]
-                if (!this.isNavigationControl(control)) continue
                 const rect = this.controlRects_[i] || new Rect()
+                // Controls that cannot take focus are registered hidden rather
+                // than skipped, so that focus state drops a retained target when
+                // its control is hidden between registrations.
                 focus.setTarget({
                     id: _uiControls.targetId(this.scopeId_, control.id),
                     scopeId: this.scopeId_,
                     rect,
                     scrollOwnerId: this.scrollOwnerId_,
                     scrollRect: this.scrollOwnerId_ ? rect : undefined,
-                    hidden: !_uiControls.isVisible(control),
+                    hidden: !this.isNavigationControl(control),
                     activatable: true,
                 })
             }

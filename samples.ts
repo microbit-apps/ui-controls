@@ -2,6 +2,9 @@
 // README samples
 //-------------------------------------------------
 namespace ui.controls.samples {
+    const STACK_SETUP_SCOPE = "stack-setup"
+    const MIXER_SCOPE = "mixer"
+
     class SettingsScreen extends ui.UiScreen {
         private speed: number
         private speedLabel: ui.UiLabel
@@ -169,6 +172,186 @@ namespace ui.controls.samples {
         }
     }
 
+    // A column stack that owns one focus scope. Rows of different widths each
+    // center on their own, labels sit between them, and up and down move from
+    // row to row without any navigation code in the screen.
+    class StackSetupScreen extends ui.UiScreen {
+        private status: ui.UiLabel
+
+        constructor(runtime: ui.UiRuntime) {
+            super(runtime)
+            this.backgroundColor = 6
+            this.status = new ui.UiLabel("Choose a size", 15)
+
+            const stack = new ui.UiStack({
+                orientation: "column",
+                // One scope for every row in the stack. The stack registers the
+                // rows under it and answers directional movement itself, which
+                // is what makes up and down cross from one row to the next.
+                scopeId: STACK_SETUP_SCOPE,
+                // Cross-axis placement of each child. Rows of two, three, and
+                // one control all end up on the same center line. A single
+                // child can override it with `alignment` on its record.
+                alignment: "center",
+                wrap: true,
+                gap: 0,
+                children: [
+                    // Every child is a record: the view plus whatever spacing
+                    // and alignment belong to it rather than to the stack.
+                    // Passive views such as labels contribute no focus targets
+                    // and are skipped by movement.
+                    { view: this.status },
+                    { view: new ui.UiLabel("Size", 15), gapBefore: 4 },
+                    { view: this.createRow("size", ["S", "M", "L"], 34), gapBefore: 3 },
+                    { view: new ui.UiLabel("Speed", 15), gapBefore: 4 },
+                    { view: this.createRow("speed", ["Slow", "Fast"], 40), gapBefore: 3 },
+                    // For a child pinned to the far edge instead, give the stack
+                    // `justify: "spaceBetween"` and a placement that stretches it
+                    // along its axis.
+                    { view: this.createRow("done", ["Done"], 44), gapBefore: 10 },
+                ],
+            })
+
+            this.add(stack, {
+                x: 0,
+                y: 4,
+                width: ui.STANDARD_DISPLAY_WIDTH,
+                horizontalAlignment: "center",
+            })
+        }
+
+        // Rows built for a stack need no scope of their own. The stack assigns
+        // its scope to each of them, so all the controls navigate as a single
+        // ragged grid.
+        private createRow(
+            id: string,
+            texts: string[],
+            controlWidth: number,
+        ): ui.UiRow<string> {
+            const controls: ui.UiControl<string>[] = []
+            for (let i = 0; i < texts.length; i++) {
+                const text = texts[i]
+                controls.push(
+                    ui.button<string>(id + "-" + i, text, () =>
+                        this.status.setText(text + " selected"),
+                    ),
+                )
+            }
+
+            return new ui.UiRow<string>({
+                controls,
+                controlSize: { width: controlWidth, height: 20 },
+                controlStyle: ui.UiButtonStyles.LightShadowedWhite,
+                gap: 4,
+            })
+        }
+    }
+
+    // The same stack put to work differently: stretched to the display so that
+    // `justify` spreads the children instead of hand-written gaps, one child
+    // aligned against the edge rather than centered, and a grid, a plain button
+    // and a row all sharing the stack's scope. The transport strip is a nested
+    // row stack, which merges its children into a single navigation row.
+    class MixerScreen extends ui.UiScreen {
+        private status: ui.UiLabel
+
+        constructor(runtime: ui.UiRuntime) {
+            super(runtime)
+            this.backgroundColor = 12
+            this.status = new ui.UiLabel("Mixer", 1)
+
+            // A grid contributes one navigation row per grid row, so the pads
+            // navigate internally exactly as they would on their own.
+            const pads = new ui.UiGrid<string>({
+                controls: [
+                    this.pad("1"),
+                    this.pad("2"),
+                    this.pad("3"),
+                    this.pad("4"),
+                    this.pad("5"),
+                    this.pad("6"),
+                ],
+                columnCount: 3,
+                controlSize: { width: 34, height: 20 },
+                controlStyle: ui.UiButtonStyles.LightShadowedWhite,
+                rowGap: 4,
+                columnGap: 4,
+            })
+
+            // A nested stack takes the scope of the stack that holds it, and
+            // passes it on to its own children. Being a row stack, it reports
+            // one merged navigation row, so the button and the pair of volume
+            // controls read as a single strip.
+            const transport = new ui.UiStack({
+                orientation: "row",
+                alignment: "center",
+                gap: 4,
+                children: [
+                    {
+                        view: new ui.UiButton<string>({
+                            id: "play",
+                            text: "Play",
+                            size: { width: 40, height: 20 },
+                            onActivate: () => this.status.setText("Playing"),
+                        }),
+                    },
+                    {
+                        view: new ui.UiRow<string>({
+                            controls: [
+                                // The type argument keeps the control's value
+                                // type as `string`. Without it the id is
+                                // inferred as its own literal type, which will
+                                // not fit a row of `UiControl<string>`.
+                                ui.button<string>("volume-down", "-", () =>
+                                    this.status.setText("Quieter"),
+                                ),
+                                ui.button<string>("volume-up", "+", () =>
+                                    this.status.setText("Louder"),
+                                ),
+                            ],
+                            controlSize: { width: 24, height: 20 },
+                            controlStyle: ui.UiButtonStyles.LightShadowedWhite,
+                            gap: 4,
+                        }),
+                    },
+                ],
+            })
+
+            const stack = new ui.UiStack({
+                orientation: "column",
+                scopeId: MIXER_SCOPE,
+                alignment: "center",
+                // Spreads the leftover space between the children, which needs a
+                // placement that stretches the stack along its axis. The pads
+                // end up centered and the transport strip pinned to the bottom
+                // without a single hand-tuned gap.
+                justify: "spaceBetween",
+                wrap: true,
+                children: [
+                    // Overrides the stack's centering for this child only.
+                    { view: this.status, alignment: "start" },
+                    { view: pads },
+                    { view: transport },
+                ],
+            })
+
+            this.add(stack, {
+                x: 0,
+                y: 4,
+                width: ui.STANDARD_DISPLAY_WIDTH,
+                height: ui.STANDARD_DISPLAY_HEIGHT - 8,
+                horizontalAlignment: "stretch",
+                verticalAlignment: "stretch",
+            })
+        }
+
+        private pad(name: string): ui.UiControl<string> {
+            return ui.button<string>("pad-" + name, name, () =>
+                this.status.setText("Pad " + name),
+            )
+        }
+    }
+
     // Selects a locale by assigning the localization seams directly. A
     // consuming app normally assigns these from its generated per-language
     // file; any code that runs before the UI is constructed can do the same,
@@ -202,7 +385,9 @@ namespace ui.controls.samples {
     applyFrenchLocale()
     const runtime = new ui.UiRuntime(new ui.DisplayShieldFrameAdapter())
     //runtime.push(new SettingsScreen(runtime))
-    runtime.push(new NameEntryScreen(runtime))
+    //runtime.push(new NameEntryScreen(runtime))
     //runtime.push(new DataGraphScreen(runtime))
+    //runtime.push(new StackSetupScreen(runtime))
+    runtime.push(new MixerScreen(runtime))
     runtime.start()
 }
