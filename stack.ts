@@ -382,15 +382,47 @@ namespace ui {
         }
 
         /**
-         * Renders the child views.
+         * Renders the child views, with every focus treatment drawn after every
+         * control.
          */
         public render(
             surface: DrawSurface,
             assets: UiAssetResolver,
             focus?: UiFocusState,
         ): void {
+            this.renderControls(surface, assets, focus)
+            this.renderFocus(surface, assets, focus)
+        }
+
+        /**
+         * Renders the child views without their focus treatments. Children that
+         * cannot separate the two render whole.
+         */
+        public renderControls(
+            surface: DrawSurface,
+            assets: UiAssetResolver,
+            focus?: UiFocusState,
+        ): void {
             for (let i = 0; i < this.children_.length; i++) {
-                this.children_[i].view.render(surface, assets, focus)
+                const view = <any>this.children_[i].view
+                if (view.renderControls) view.renderControls(surface, assets, focus)
+                else view.render(surface, assets, focus)
+            }
+        }
+
+        /**
+         * Renders only the children's focus treatments. Drawing these in a pass
+         * of their own keeps a focus label, which extends past its control, from
+         * being covered by a child rendered after it.
+         */
+        public renderFocus(
+            surface: DrawSurface,
+            assets: UiAssetResolver,
+            focus?: UiFocusState,
+        ): void {
+            for (let i = 0; i < this.children_.length; i++) {
+                const view = <any>this.children_[i].view
+                if (view.renderFocus) view.renderFocus(surface, assets, focus)
             }
         }
 

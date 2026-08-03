@@ -783,21 +783,42 @@ namespace ui {
             assets: UiAssetResolver,
             focus?: UiFocusState,
         ): void {
+            this.renderControls(surface, assets, focus)
+            this.renderFocus(surface, assets, focus)
+        }
+
+        /**
+         * Renders the button without its focused overlay.
+         */
+        public renderControls(
+            surface: DrawSurface,
+            assets: UiAssetResolver,
+            focus?: UiFocusState,
+        ): void {
             if (!_uiControls.isVisible(this.control_)) return
-            const labelBounds = _uiControls.resolveLabelBounds(
-                surface,
-                this.labelBounds_,
-            )
             _uiControls.renderControl(
                 surface,
                 this.control_,
                 this.finalRect,
                 this.controlView_,
                 undefined,
-                labelBounds,
+                _uiControls.resolveLabelBounds(surface, this.labelBounds_),
                 undefined,
                 assets,
             )
+        }
+
+        /**
+         * Renders only this button's focus treatment, which a parent draws in a
+         * later pass so that the focus label is not covered by a view rendered
+         * after it.
+         */
+        public renderFocus(
+            surface: DrawSurface,
+            assets: UiAssetResolver,
+            focus?: UiFocusState,
+        ): void {
+            if (!_uiControls.isVisible(this.control_)) return
             if (
                 _uiControls.activeTargetIdForScope(focus, this.scopeId_) ==
                 this.targetId()
@@ -808,7 +829,7 @@ namespace ui {
                     this.finalRect,
                     this.controlView_,
                     undefined,
-                    labelBounds,
+                    _uiControls.resolveLabelBounds(surface, this.labelBounds_),
                     true,
                     assets,
                 )
