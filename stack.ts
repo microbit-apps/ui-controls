@@ -284,13 +284,23 @@ namespace ui {
 
         /**
          * Registers the scope this stack owns and its children's targets under
-         * it. Layout-only stacks register nothing.
+         * it. A stack that owns no scope steps aside and lets each child
+         * register the scope it came with, so a focusable view placed in a
+         * layout-only stack behaves as it would on a screen of its own.
          */
         public registerFocusTargets(
             focus: UiFocusState,
             scopeOptions?: UiFocusScopeOptions,
         ): void {
-            if (this.scopeId_ === undefined) return
+            if (this.scopeId_ === undefined) {
+                for (let i = 0; i < this.children_.length; i++) {
+                    const view = <any>this.children_[i].view
+                    if (view.registerFocusTargets)
+                        view.registerFocusTargets(focus)
+                }
+                return
+            }
+
             const scope = scopeOptions || {
                 id: this.scopeId_,
                 preferredTargetId: this.resolvePreferredTargetId(),
@@ -304,20 +314,39 @@ namespace ui {
 
         /**
          * Registers this stack as the navigation for the scope it owns, so that
-         * movement is answered from current child state on every press.
+         * movement is answered from current child state on every press. A stack
+         * that owns no scope lets each child register its own navigation.
          */
         public registerNavigation(controller: UiFocusInputController): void {
-            if (this.scopeId_ === undefined) return
+            if (this.scopeId_ === undefined) {
+                for (let i = 0; i < this.children_.length; i++) {
+                    const view = <any>this.children_[i].view
+                    if (view.registerNavigation) view.registerNavigation(controller)
+                }
+                return
+            }
+
             controller.setNavigation(this.scopeId_, this)
         }
 
         /**
-         * Focuses this stack's retained or preferred target.
+         * Focuses this stack's retained or preferred target. A stack that owns
+         * no scope offers its children in order, so that focus still starts
+         * somewhere sensible inside a layout-only stack.
          */
         public focusDefault(focus: UiFocusState): UiFocusSetResult {
-            if (this.scopeId_ === undefined)
-                return { kind: "rejected", reason: "missingScope" }
-            return focus.setActiveScope(this.scopeId_)
+            if (this.scopeId_ !== undefined)
+                return focus.setActiveScope(this.scopeId_)
+
+            let firstResult: UiFocusSetResult = undefined
+            for (let i = 0; i < this.children_.length; i++) {
+                const view = <any>this.children_[i].view
+                if (!view.focusDefault) continue
+                const result = <UiFocusSetResult>view.focusDefault(focus)
+                if (result && result.kind == "focused") return result
+                if (!firstResult) firstResult = result
+            }
+            return firstResult || { kind: "rejected", reason: "missingScope" }
         }
 
         /**
@@ -432,9 +461,11 @@ namespace ui {
          */
         public handleFocusInput(result: UiFocusInputResult): any {
             for (let i = 0; i < this.children_.length; i++) {
-                const child = this.focusChild(i)
-                if (!child) continue
-                const childResult = child.handleFocusInput(result)
+                // Every child is offered the result, not just the ones this
+                // stack navigates, so a child holding a scope of its own still
+                // activates.
+                const childResult =
+                    this.children_[i].view.handleFocusInput(result)
                 if (childResult) return childResult
             }
             return undefined
