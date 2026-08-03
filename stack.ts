@@ -502,16 +502,20 @@ namespace ui {
             index: number,
         ): UiComposableFocusView<any> | undefined {
             const child = <any>this.children_[index].view
-            // The whole composable surface is required, since this stack calls
-            // every part of it. A view offering only some of it is left to
-            // itself rather than half driven.
-            if (
-                !child.navigationRows ||
-                !child.registerFocusTargets ||
-                !child.resolvePreferredTargetId ||
-                !child.setScopeId
+            if (!child.registerFocusTargets) return undefined
+            // A stack with no scope drives nothing; its children register and
+            // navigate themselves.
+            if (this.scopeId_ === undefined) return undefined
+            // A stack that owns a scope is the only thing that will register
+            // this child, so half of the composable surface is not enough: the
+            // child would register nothing and its controls would be
+            // unreachable. Fail here rather than at the missing member.
+            control.assert(
+                !!child.navigationRows &&
+                    !!child.resolvePreferredTargetId &&
+                    !!child.setScopeId,
+                "a focusable child of a scoped stack must implement UiComposableFocusView",
             )
-                return undefined
             return <UiComposableFocusView<any>>child
         }
 
