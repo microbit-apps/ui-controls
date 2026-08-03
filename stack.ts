@@ -108,7 +108,7 @@ namespace ui {
         private gap_: number
         private alignment_: UiLayoutAlignment
         private justify_: UiStackJustify
-        private scopeId_: UiFocusScopeId
+        private scopeId_: UiFocusScopeId | undefined
         private wrap_: boolean
         private verticalStrategy_: UiFocusVerticalStrategy
         private childRect_: Rect
@@ -137,7 +137,7 @@ namespace ui {
          * Focus scope owned by this stack, or `undefined` for a layout-only
          * stack.
          */
-        public get scopeId(): UiFocusScopeId {
+        public get scopeId(): UiFocusScopeId | undefined {
             return this.scopeId_
         }
 
@@ -457,7 +457,9 @@ namespace ui {
             if (focusable.setScopeId) focusable.setScopeId(this.scopeId_)
         }
 
-        private focusChild(index: number): UiComposableFocusView<any> {
+        private focusChild(
+            index: number,
+        ): UiComposableFocusView<any> | undefined {
             const child = <any>this.children_[index].view
             if (!child.navigationRows || !child.registerFocusTargets)
                 return undefined

@@ -77,7 +77,7 @@ namespace ui {
         public readonly layoutSpec: UiLayoutSpec
         public readonly finalRect: Rect
         public layoutDirty: boolean
-        private scopeId_: UiFocusScopeId
+        private scopeId_: UiFocusScopeId | undefined
         private controls_: UiRowControl<T>[]
         private defaultControlId_: string
         private scrollOwnerId_: UiFocusScrollOwnerId
@@ -117,7 +117,7 @@ namespace ui {
         /**
          * Focus scope id used by this row.
          */
-        public get scopeId(): UiFocusScopeId {
+        public get scopeId(): UiFocusScopeId | undefined {
             return this.scopeId_
         }
 
@@ -296,9 +296,12 @@ namespace ui {
         }
 
         /**
-         * Focuses the row's retained, default, or first enabled control.
+         * Focuses the row's retained, default, or first enabled control. A row
+         * waiting for a parent to assign it a scope has nothing to focus.
          */
         public focusDefault(focus: UiFocusState): UiFocusSetResult {
+            if (this.scopeId_ === undefined)
+                return { kind: "rejected", reason: "missingScope" }
             return focus.setActiveScope(this.scopeId_)
         }
 
