@@ -25,9 +25,11 @@ namespace ui {
         controls: UiRowControl<T>[]
 
         /**
-         * Focus scope id for this row.
+         * Focus scope id for this row. Required for a row added to a screen on
+         * its own; omit it for a row placed in a `UiStack` that owns a scope,
+         * which assigns its own.
          */
-        scopeId: UiFocusScopeId
+        scopeId?: UiFocusScopeId
 
         /**
          * Scroll owner used when this row is arranged in scroll content.
@@ -71,7 +73,7 @@ namespace ui {
     /**
      * Renders and navigates one horizontal control row.
      */
-    export class UiRow<T> implements UiFocusableView<UiRowResult<T>> {
+    export class UiRow<T> implements UiComposableFocusView<UiRowResult<T>> {
         public readonly layoutSpec: UiLayoutSpec
         public readonly finalRect: Rect
         public layoutDirty: boolean
@@ -117,6 +119,15 @@ namespace ui {
          */
         public get scopeId(): UiFocusScopeId {
             return this.scopeId_
+        }
+
+        /**
+         * Adopts an owner scope, so a parent view can navigate this row together
+         * with its siblings. Target ids are derived from the scope, so this runs
+         * before focus registration.
+         */
+        public setScopeId(scopeId: UiFocusScopeId): void {
+            this.scopeId_ = scopeId
         }
 
         /**
@@ -230,6 +241,10 @@ namespace ui {
             focus: UiFocusState,
             scopeOptions?: UiFocusScopeOptions,
         ): void {
+            control.assert(
+                this.scopeId_ !== undefined,
+                "row needs a scopeId, or a parent that assigns one",
+            )
             const preferred = _uiControls.preferredControlId(
                 this.scopeId_,
                 this.controls_,
@@ -244,24 +259,35 @@ namespace ui {
             this.ensureControlRects()
             for (let i = 0; i < this.controls_.length; i++) {
                 const control = this.controls_[i]
-                if (!this.isNavigationControl(control)) continue
                 const rect = this.controlRects_[i] || new Rect()
+                // Controls that cannot take focus are registered hidden rather
+                // than skipped, so that focus state drops a retained target when
+                // its control is hidden between registrations.
                 focus.setTarget({
                     id: _uiControls.targetId(this.scopeId_, control.id),
                     scopeId: this.scopeId_,
                     rect,
                     scrollOwnerId: this.scrollOwnerId_,
                     scrollRect: this.scrollOwnerId_ ? rect : undefined,
-                    hidden: !_uiControls.isVisible(control),
+                    hidden: !this.isNavigationControl(control),
                     activatable: true,
                 })
             }
         }
 
         /**
+         * Navigation targets as a single row, for parent views that compose
+         * several views into one focus scope.
+         */
+        public navigationRows(): UiFocusNavigationTarget[][] {
+            return [this.navigationTargets()]
+        }
+
+        /**
          * Registers row navigation with a focus input controller.
          */
         public registerNavigation(controller: UiFocusInputController): void {
+            if (this.scopeId_ === undefined) return
             controller.setNavigation(this.scopeId_, {
                 kind: "row",
                 targets: this.navigationTargets(),

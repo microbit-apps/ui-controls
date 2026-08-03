@@ -10,6 +10,8 @@ It builds on [**ui-core**](https://github.com/humanapp/ui-core) and adds reusabl
 
 - Add `UiLabel` and `UiButton` to a screen with `add()` instead of writing a
   custom `render()` method for text or activation.
+- Put several rows of controls in a `UiStack` with a `scopeId` when they should
+  lay out independently but navigate as one.
 - Open a `UiPicker` for a short modal choice such as a confirmation dialog.
 - Open a `UiNumericEntryModal` for number entry through a built-in keypad.
 - Open a `UiTextEntryModal` for short string entry through a compact keyboard.
@@ -309,6 +311,99 @@ class DataGraphScreen extends ui.UiScreen {
     <img src="./assets/data-vis.png" width="40%">
 </p>
 
+## 6. Stack Rows Into One Focus Scope
+
+A `UiRow` or `UiGrid` added to a screen owns its own focus scope, and focus does
+not cross scopes on its own. When a screen wants several rows that lay out
+independently but navigate as one, put them in a `UiStack` and give the stack a
+`scopeId`. The stack registers the rows under its scope and answers directional
+movement for all of them, so up and down cross from row to row with no
+navigation code in the screen. Views without focus targets, such as `UiLabel`,
+simply take part in layout and are skipped by movement.
+
+```ts
+const SETUP_SCOPE = "setup"
+
+class SetupScreen extends ui.UiScreen {
+    constructor(runtime: ui.UiRuntime) {
+        super(runtime)
+        this.backgroundColor = 6
+
+        this.add(
+            new ui.UiStack({
+                orientation: "column",
+                scopeId: SETUP_SCOPE,
+                alignment: "center",
+                wrap: true,
+                gap: 0,
+                children: [
+                    { view: new ui.UiLabel("Size", 15) },
+                    { view: this.row(["S", "M", "L"], 34), gapBefore: 3 },
+                    { view: new ui.UiLabel("Speed", 15), gapBefore: 4 },
+                    { view: this.row(["Slow", "Fast"], 40), gapBefore: 3 },
+                    { view: this.row(["Done"], 44), gapBefore: 10 },
+                ],
+            }),
+            {
+                x: 0,
+                y: 4,
+                width: ui.STANDARD_DISPLAY_WIDTH,
+                horizontalAlignment: "center",
+            },
+        )
+    }
+
+    // No scopeId here: the stack assigns its own to every row it holds.
+    private row(texts: string[], controlWidth: number): ui.UiRow<string> {
+        const controls: ui.UiControl<string>[] = []
+        for (let i = 0; i < texts.length; i++)
+            controls.push(ui.button<string>(texts[i], texts[i], () => {}))
+
+        return new ui.UiRow<string>({
+            controls,
+            controlSize: { width: controlWidth, height: 20 },
+            controlStyle: ui.UiButtonStyles.LightShadowedWhite,
+            gap: 4,
+        })
+    }
+}
+```
+
+A row or grid built for a stack needs no `scopeId` of its own; the stack assigns
+one, so the scope is named once. Give a row its own `scopeId` when it is added
+to a screen directly, which is what it needs to register a scope at all.
+
+Each child is a record holding the view plus whatever placement belongs to that
+child rather than to the whole stack. The stack's `alignment` places every child
+on the cross axis, so rows of three, two, and one control all share a center
+line; a child overrides it with its own `alignment`, and adds `gapBefore` or
+`gapAfter` for spacing of its own.
+
+Children keep laying themselves out, so any focusable view composes: a `UiGrid`
+contributes one navigation row per grid row, a `UiButton` contributes one
+target, and a nested `UiStack` passes the scope on to its own children. A nested
+stack with `orientation: "row"` reports its children as a single merged row,
+which is the way to make a button and a row read as one strip of controls.
+
+To spread children instead of spacing them by hand, give the stack a `justify`
+of `"center"`, `"end"`, or `"spaceBetween"` and a placement that stretches it
+along its axis:
+
+```ts
+this.add(stack, {
+    x: 0,
+    y: 4,
+    width: ui.STANDARD_DISPLAY_WIDTH,
+    height: ui.STANDARD_DISPLAY_HEIGHT - 8,
+    horizontalAlignment: "stretch",
+    verticalAlignment: "stretch",
+})
+```
+
+Without a `scopeId` a stack is layout only: it arranges and renders its children
+and registers no focus scope, which is all that is needed for a column of
+labels.
+
 ## A Few Working Rules
 
 - Use screen modals for short blocking tasks such as number entry, text entry,
@@ -316,6 +411,13 @@ class DataGraphScreen extends ui.UiScreen {
 - Prefer `UiLabel` and `UiButton` over custom `render()` for static text and
   activation. Drop down to custom drawing on the `DrawSurface` when the screen
   needs something the controls do not provide.
+- A `UiStack` takes a `scopeId` when it owns a focus scope for its children. It
+  has none of its own in two cases: when it holds nothing focusable, such as a
+  column of labels, and when it is nested in a stack that already owns one and
+  passes it down.
+- Rows and grids added to a screen separately keep separate scopes, and focus
+  does not cross between them. Put them in one scope-owning stack when they
+  should navigate as one.
 - Reuse `Rect`, `Size`, and `UiMeasuredSize` objects in frame code when practical. Avoid allocations in the render callback.
 
 ## Using **ui-controls**
