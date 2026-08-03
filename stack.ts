@@ -214,9 +214,18 @@ namespace ui {
             this.childConstraints_.maxWidth = this.finalRect.width
             this.childConstraints_.maxHeight = this.finalRect.height
             const row = this.orientation_ == "row"
-            const available = row ? this.finalRect.width : this.finalRect.height
-            const content = this.contentMainSize()
-            const slack = Math.max(0, available - content)
+            // Only a stack that distributes leftover space needs the content
+            // size, and measuring for it costs a pass over every child. Packing
+            // from the start needs neither.
+            const slack =
+                this.justify_ == "start"
+                    ? 0
+                    : Math.max(
+                          0,
+                          (row
+                              ? this.finalRect.width
+                              : this.finalRect.height) - this.contentMainSize(),
+                      )
             let pos = (row ? this.finalRect.x : this.finalRect.y) +
                 this.justifyOffset(slack)
             const spacing = this.justifySpacing(slack)
@@ -493,7 +502,15 @@ namespace ui {
             index: number,
         ): UiComposableFocusView<any> | undefined {
             const child = <any>this.children_[index].view
-            if (!child.navigationRows || !child.registerFocusTargets)
+            // The whole composable surface is required, since this stack calls
+            // every part of it. A view offering only some of it is left to
+            // itself rather than half driven.
+            if (
+                !child.navigationRows ||
+                !child.registerFocusTargets ||
+                !child.resolvePreferredTargetId ||
+                !child.setScopeId
+            )
                 return undefined
             return <UiComposableFocusView<any>>child
         }
