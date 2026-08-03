@@ -48,9 +48,10 @@ namespace ui {
         orientation: UiStackOrientation
 
         /**
-         * Child records in arrangement order.
+         * Child records in arrangement order. Omitted for a stack whose
+         * children are set later with `setChildren`.
          */
-        children: UiStackChild[]
+        children?: UiStackChild[]
 
         /**
          * Space between adjacent children.
@@ -162,7 +163,7 @@ namespace ui {
          * Replaces the child records and marks layout dirty. Children that can
          * join a focus scope adopt this stack's scope.
          */
-        public setChildren(children: UiStackChild[]): void {
+        public setChildren(children?: UiStackChild[]): void {
             this.children_ = children || []
             for (let i = 0; i < this.children_.length; i++)
                 this.adoptScope(this.children_[i])

@@ -309,6 +309,9 @@ namespace ui {
          * Returns the target id chosen by default-control rules.
          */
         public resolvePreferredTargetId(): UiFocusId | undefined {
+            // Target ids are built from the scope, so a row still waiting for a
+            // parent to assign one has no target to offer.
+            if (this.scopeId_ === undefined) return undefined
             return _uiControls.preferredControlId(
                 this.scopeId_,
                 this.controls_,
