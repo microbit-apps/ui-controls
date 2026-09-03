@@ -366,7 +366,7 @@ namespace ui {
         /**
          * Speaks the text of the child view owning one of this stack's focus targets.
          */
-        public speakTargetText(targetId: UiFocusId): boolean {
+        private speakTargetText(targetId: UiFocusId): boolean {
             for (let i = 0; i < this.children_.length; i++) {
                 const candidate = <any>this.children_[i].view
                 if (

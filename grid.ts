@@ -247,7 +247,7 @@ namespace ui {
         /**
          * Speaks the grid's focus target's control 
          */
-        public speakTargetText(targetId: UiFocusId): boolean {
+        private speakTargetText(targetId: UiFocusId): boolean {
             if (this.scopeId_ === undefined) return false
             const control = _uiControls.findControlByTargetId(
                 this.scopeId_,

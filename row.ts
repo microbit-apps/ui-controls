@@ -311,7 +311,7 @@ namespace ui {
         /**
          * Speaks the text of the control from this row's focused target
          */
-        public speakTargetText(targetId: UiFocusId): boolean {
+        private speakTargetText(targetId: UiFocusId): boolean {
             if (this.scopeId_ === undefined) return false
             const control = _uiControls.findControlByTargetId(
                 this.scopeId_,

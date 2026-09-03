@@ -696,7 +696,7 @@ namespace ui {
         /**
          * Invokes speakControlText on this.control_
          */
-        public speakTargetText(targetId: UiFocusId): boolean {
+        private speakTargetText(targetId: UiFocusId): boolean {
             if (!this.isNavigationControl() || targetId != this.targetId())
                 return false
             controls.tts.speakControlText(this.control_)
