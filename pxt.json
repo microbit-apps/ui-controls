@@ -1,6 +1,15 @@
 {
     "name": "ui-controls",
     "version": "0.0.9",
+    "dependencies": {
+        "core": "*",
+        "radio": "*",
+        "microphone": "*",
+        "display-shield": "github:microbit-apps/display-shield#v1.1.4",
+        "ui-core": "github:microbit-apps/ui-core#v0.0.8",
+        "jacdac": "github:jacdac/pxt-jacdac#v1.9.42",
+        "jacdac-speech-synthesis": "github:jacdac/pxt-jacdac/speech-synthesis#v1.9.42"
+    },
     "files": [
         "ns.ts",
         "button.ts",
@@ -12,26 +21,15 @@
         "modal-style.ts",
         "modal-grid.ts",
         "numeric-entry.ts",
-        "text-entry.ts"
-    ],
-    "yotta": {
-        "config": {
-            "DEVICE_BLE": 0
-        }
-    },
-    "supportedTargets": [
-        "microbit"
+        "text-entry.ts",
+        "tts.ts"
     ],
     "testFiles": [
         "test.ts",
         "samples.ts"
     ],
-    "dependencies": {
-        "core": "*",
-        "radio": "*",
-        "microphone": "*",
-        "display-shield": "github:microbit-apps/display-shield#v1.1.4",
-        "ui-core": "github:microbit-apps/ui-core#v0.0.8"
-    },
-    "testDependencies": {}
+    "testDependencies": {},
+    "supportedTargets": [
+        "microbit"
+    ]
 }

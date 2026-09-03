@@ -234,11 +234,29 @@ namespace ui {
         /**
          * Focuses the grid's retained, default, or first enabled control. A grid
          * waiting for a parent to assign it a scope has nothing to focus.
+         * Invokes speakTargetText()
          */
         public focusDefault(focus: UiFocusState): UiFocusSetResult {
             if (this.scopeId_ === undefined)
                 return { kind: "rejected", reason: "missingScope" }
-            return focus.setActiveScope(this.scopeId_)
+            const result = focus.setActiveScope(this.scopeId_)
+            if (result.kind == "focused") this.speakTargetText(result.targetId)
+            return result
+        }
+
+        /**
+         * Speaks the grid's focus target's control 
+         */
+        public speakTargetText(targetId: UiFocusId): boolean {
+            if (this.scopeId_ === undefined) return false
+            const control = _uiControls.findControlByTargetId(
+                this.scopeId_,
+                this.controls_,
+                targetId,
+            )
+            if (!control) return false
+            controls.tts.speakControlText(control)
+            return true
         }
 
         /**
@@ -283,8 +301,14 @@ namespace ui {
 
         /**
          * Converts a focus input result into a grid result when one occurred.
+         * Invokes speakTargetText()
          */
         public handleFocusInput(result: UiFocusInputResult): UiGridResult<T> {
+            if (result.kind == "moved") {
+                if (result.scopeId == this.scopeId_)
+                    this.speakTargetText(result.targetId)
+                return undefined
+            }
             if (result.kind == "activated") {
                 const activation = this.createResultForActivation(
                     result.scopeId,

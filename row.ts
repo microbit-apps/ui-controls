@@ -298,11 +298,29 @@ namespace ui {
         /**
          * Focuses the row's retained, default, or first enabled control. A row
          * waiting for a parent to assign it a scope has nothing to focus.
+         * Invokes speakTargetText
          */
         public focusDefault(focus: UiFocusState): UiFocusSetResult {
             if (this.scopeId_ === undefined)
                 return { kind: "rejected", reason: "missingScope" }
-            return focus.setActiveScope(this.scopeId_)
+            const result = focus.setActiveScope(this.scopeId_)
+            if (result.kind == "focused") this.speakTargetText(result.targetId)
+            return result
+        }
+
+        /**
+         * Speaks the text of the control from this row's focused target
+         */
+        public speakTargetText(targetId: UiFocusId): boolean {
+            if (this.scopeId_ === undefined) return false
+            const control = _uiControls.findControlByTargetId(
+                this.scopeId_,
+                this.controls_,
+                targetId,
+            )
+            if (!control) return false
+            controls.tts.speakControlText(control)
+            return true
         }
 
         /**
@@ -321,8 +339,14 @@ namespace ui {
 
         /**
          * Converts a focus input result into a row result when one occurred.
+         * Invokes speakTargetText
          */
         public handleFocusInput(result: UiFocusInputResult): UiRowResult<T> {
+            if (result.kind == "moved") {
+                if (result.scopeId == this.scopeId_)
+                    this.speakTargetText(result.targetId)
+                return undefined
+            }
             if (result.kind == "activated") {
                 const activation = this.createResultForActivation(
                     result.scopeId,

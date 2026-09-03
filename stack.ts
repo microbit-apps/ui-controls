@@ -340,13 +340,17 @@ namespace ui {
         }
 
         /**
-         * Focuses this stack's retained or preferred target. A stack that owns
-         * no scope offers its children in order, so that focus still starts
-         * somewhere sensible inside a layout-only stack.
+         * Focuses this stack's retained or preferred target.
+         * Announces the focused control over TTS.
+         * Invokes speakTargetText
          */
         public focusDefault(focus: UiFocusState): UiFocusSetResult {
-            if (this.scopeId_ !== undefined)
-                return focus.setActiveScope(this.scopeId_)
+            if (this.scopeId_ !== undefined) {
+                const result = focus.setActiveScope(this.scopeId_)
+                if (result.kind == "focused")
+                    this.speakTargetText(result.targetId)
+                return result
+            }
 
             let firstResult: UiFocusSetResult = undefined
             for (let i = 0; i < this.children_.length; i++) {
@@ -357,6 +361,21 @@ namespace ui {
                 if (!firstResult) firstResult = result
             }
             return firstResult || { kind: "rejected", reason: "missingScope" }
+        }
+
+        /**
+         * Speaks the text of the child view owning one of this stack's focus targets.
+         */
+        public speakTargetText(targetId: UiFocusId): boolean {
+            for (let i = 0; i < this.children_.length; i++) {
+                const candidate = <any>this.children_[i].view
+                if (
+                    candidate.speakTargetText &&
+                    candidate.speakTargetText(targetId)
+                )
+                    return true
+            }
+            return false
         }
 
         /**

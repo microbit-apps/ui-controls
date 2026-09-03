@@ -685,9 +685,22 @@ namespace ui {
 
         /**
          * Focuses this button when it is available.
+         * Invokes speakTargetText
          */
         public focusDefault(focus: UiFocusState): UiFocusSetResult {
-            return focus.setActiveScope(this.scopeId_)
+            const result = focus.setActiveScope(this.scopeId_)
+            if (result.kind == "focused") this.speakTargetText(result.targetId)
+            return result
+        }
+
+        /**
+         * Invokes speakControlText on this.control_
+         */
+        public speakTargetText(targetId: UiFocusId): boolean {
+            if (!this.isNavigationControl() || targetId != this.targetId())
+                return false
+            controls.tts.speakControlText(this.control_)
+            return true
         }
 
         /**
@@ -715,8 +728,14 @@ namespace ui {
 
         /**
          * Converts a focus input result into a button result when one occurred.
+         * Invokes speakTargetText()
          */
         public handleFocusInput(result: UiFocusInputResult): UiButtonResult<T> {
+            if (result.kind == "moved") {
+                if (result.scopeId == this.scopeId_)
+                    this.speakTargetText(result.targetId)
+                return undefined
+            }
             if (result.kind == "activated") {
                 const activation = this.createResultForActivation(
                     result.scopeId,

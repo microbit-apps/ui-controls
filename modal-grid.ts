@@ -305,7 +305,10 @@ namespace ui {
                     horizontalWrap: true,
                     verticalStrategy: "nearest",
                 })
-            return focus.setActiveScope(this.modalScopeId_)
+            const result = focus.setActiveScope(this.modalScopeId_)
+            if (result.kind == "focused")
+                this.speakTargetControl(result.targetId)
+            return result
         }
 
         /**
@@ -353,8 +356,14 @@ namespace ui {
 
         /**
          * Converts focus input into a modal result when one occurred.
+         * Invokes speakTargetText
          */
         public handleFocusInput(result: UiFocusInputResult): UiPickerResult<T> {
+            if (result.kind == "moved") {
+                if (result.scopeId == this.modalScopeId_)
+                    this.speakTargetControl(result.targetId)
+                return undefined
+            }
             if (result.kind == "activated") {
                 const activation = this.createResultForActivation(
                     result.scopeId,
@@ -585,6 +594,17 @@ namespace ui {
                     targetId,
                 )
             )
+        }
+
+        /**
+         * Speaks picker's control
+         */
+        private speakTargetControl(targetId: UiFocusId): void {
+            const control = this.activatedControl(
+                this.modalScopeId_,
+                targetId,
+            )
+            if (control) controls.tts.speakControlText(control)
         }
 
         private navigationRows(): UiFocusNavigationTarget[][] {
