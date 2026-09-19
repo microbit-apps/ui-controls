@@ -1,6 +1,6 @@
 {
     "name": "ui-controls",
-    "version": "0.0.9",
+    "version": "0.0.10",
     "files": [
         "ns.ts",
         "button.ts",
